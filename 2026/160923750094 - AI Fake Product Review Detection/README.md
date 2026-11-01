@@ -1,51 +1,150 @@
-# TrustLens - AI-Based Fake Review, Bot Detection and User Trust Analysis (Streamlit)
+# TrustLens
 
-No login. No database. One command opens the website in your browser.
+TrustLens checks online reviews. It tells you if a review is fake, if the reviewer acts like a bot, and gives one trust score from 0 to 100 with reasons (highlighted words).
 
-## Run it
-1. Open the trustlens folder in VS Code and open the terminal there
-2. (first time only)   pip install -r requirements.txt
-3. python app.py         <- the browser opens by itself  (python run.py or streamlit run app.py also work)
-4. First time: open "Check a Review" and press "Train model now" (about 1 minute). Or run:  python -m ml.train
+## Table of Contents
 
-## IMPORTANT: the dataset
-data/fake reviews dataset.csv is a SAMPLE I generated (20,000 reviews) so the project runs on day one.
-It is NOT real Amazon data. On it the models score about 74-79% (computed honestly, nothing is fixed or capped).
-For your viva: the numbers must come from the real data. Download the real Kaggle file, copy it into the data folder (any name .csv is fine),
-delete the sample, then train again (Model Performance page -> Train again).
+- [Features](#features)
+- [How It Works](#how-it-works)
+- [Models](#models)
+- [Behaviour (Bot) Check](#behaviour-bot-check)
+- [Trust Score Formulas](#trust-score-formulas)
+- [Results](#results)
+- [Explainable AI](#explainable-ai)
+- [Installation](#installation)
+- [Usage](#usage)
+- [CSV Format](#csv-format)
+- [Project Structure](#project-structure)
+- [Limitations](#limitations)
+- [Future Work](#future-work)
+- [Tech Stack](#tech-stack)
 
-## Pages
+## Features
+
 | Page | What it does |
-|---|---|
-| Home | Summary, how it works, trust levels |
-| Check a Review | Type a review -> fake/genuine, trust gauge, highlighted words, Why list. Optional reviewer behaviour -> bot check |
-| Check a CSV File | Many reviews at once. Add user_id (and date) columns -> bot detection table. Download results |
-| Model Performance | Results table of 4 models, charts, confusion matrix, retrain |
+|------|--------------|
+| Check a Review | One review: verdict, trust gauge, highlighted words |
+| Check a CSV File | Many reviews at once, plus a table of the most bot-like users |
+| Model Performance | All 4 models compared, with confusion matrix |
 
-## Read the code in this order
-| Step | File | What it does |
-|---|---|---|
-| 1 | ml/load_data.py | Loads the CSV, 1 = fake, 0 = real, takes up to 10,000 balanced reviews |
-| 2 | ml/clean.py | Lowercase, remove tags and symbols |
-| 3 | ml/features.py | TF-IDF: words -> numbers |
-| 4 | ml/behavior.py | Risk from reviews in one day and account age |
-| 5 | ml/bot.py | User trust score and bot status |
-| 6 | ml/score.py | Review trust score 0-100 and the 3 levels |
-| 7 | ml/explain.py | Top words and the highlighted review |
-| 8 | ml/train.py | Trains LR, SVM, Random Forest, XGBoost, keeps best F1 |
-| - | ml/predict.py | Joins all steps for one review or many |
-| - | ml/batch.py | CSV mode and bot detection per user |
-| - | app.py | The Streamlit website (only screen code, no ML) |
-| - | run.py | Starts the website and opens the browser |
+## How It Works
 
-## Where behaviour comes from (no database)
-- Manual mode: you type reviews in 24 hours and account age in the "Reviewer behaviour" box
-- CSV mode: counted from the user_id and date columns
+| Step | What happens | Why |
+|------|--------------|-----|
+| 1. Data | Kaggle fake reviews dataset. CG = fake (computer generated), OR = real. We use 10,000 reviews (5,000 + 5,000). | Balanced, so the model cannot cheat by guessing one class |
+| 2. Clean | Lowercase, remove tags and symbols. | The same word should look the same |
+| 3. TF-IDF | Words become numbers. Special words get high values, common words low. Top 5,000 words and word pairs. | Models only understand numbers |
+| 4. Models | Train 4 models, compare them, keep the best by F1. It gives the fake probability (0 to 1). | Choose by evidence, not guess |
+| 5. Score | Combine the text result and the behaviour result into one trust score. | One easy number |
 
-## Troubleshooting
-| Problem | Fix |
-|---|---|
-| Browser did not open | Open http://localhost:8501 |
-| Port already in use | Close the old terminal (Ctrl + C) and run again |
-| No module named ... | pip install -r requirements.txt (inside your venv) |
-| Dataset error | Needs columns: label (CG/OR or fake/real) and text_ (or review_text) |
+## Models
+
+| Model | Simple idea | Role |
+|-------|-------------|------|
+| Logistic Regression | Gives each word a weight (plus = fake-like, minus = real-like) | Competes AND is always saved as the explainer (red/green words) |
+| SVM | Best dividing line between fake and real; good for text | Competes |
+| Random Forest | Many decision trees vote | Competes |
+| XGBoost | Trees that learn from earlier trees' mistakes | Competes |
+
+The winner (best F1) gives the fake probability on the website.
+
+## Behaviour (Bot) Check
+
+- Two inputs: reviews in the last 24 hours and account age.
+- Simple rules give a risk from 0 to 1 (10+ reviews a day = highest risk; an account created today adds risk). The bigger of the two risks is used.
+- This part is rule-based, not trained, because the dataset has no user data.
+- CSV mode: reviews per user are counted from the user_id and date columns, and the most suspicious users are shown first.
+
+## Trust Score Formulas
+
+| Item | Rule |
+|------|------|
+| Review trust | 100 x (1 - (0.7 x fake probability + 0.3 x behaviour risk)). No behaviour info: 100 x (1 - fake probability) |
+| User trust | 100 x (1 - (0.5 x behaviour risk + 0.5 x average fake probability)) |
+| Review level | 70+ Trusted, 40-69 Needs a check, below 40 Likely fake or bot |
+| Bot status | 70+ Looks human, 40-69 Suspicious, below 40 Bot-like |
+| Verdict | Fake probability 0.5 or more = Fake |
+
+Example: fake probability 0.60, 6 reviews today, account 3 days old.
+Behaviour risk = 0.6. Risk = 0.7 x 0.6 + 0.3 x 0.6 = 0.6. Trust = 40 = Needs a check.
+
+## Results
+
+Best model: ____________
+Accuracy: ______
+Precision: ______
+Recall: ______
+F1: ______
+
+- Precision: of the reviews we called fake, how many really were fake.
+- Recall: of all real fakes, how many we caught.
+- F1: balance of both. Used to pick the best model.
+- Split: 80% train / 20% test (never-seen reviews).
+
+## Explainable AI
+
+Word contribution = its TF-IDF value in the review x its Logistic Regression weight. Plus pushes toward fake (red), minus pushes toward real (green).
+
+Note: the highlights always come from Logistic Regression, even if another model wins.
+
+## Installation
+
+```bash
+git clone https://github.com/your-username/trustlens.git
+cd trustlens
+pip install -r requirements.txt
+```
+
+Download the Kaggle fake reviews dataset and put the file in the data folder. The repository only includes a small sample dataset, so replace it with the real Kaggle file before training.
+
+## Usage
+
+Train the models:
+
+```bash
+python train.py
+```
+
+Run the website:
+
+```bash
+streamlit run app.py
+```
+
+Then open the local address shown in the terminal (usually http://localhost:8501).
+
+## CSV Format
+
+| Column | Meaning |
+|--------|---------|
+| review | The review text |
+| user_id | Who wrote the review |
+| date | When it was posted |
+
+## Project Structure
+
+```
+trustlens/
+  data/              Kaggle dataset goes here
+  models/            Saved models (joblib)
+  train.py           Train and compare the 4 models
+  app.py             Streamlit website
+  requirements.txt
+  README.md
+```
+
+## Limitations
+
+1. Fake reviews in the dataset are computer-generated, not real paid reviewers.
+2. Behaviour rules and the 70/30 and 50/50 weights are our design choices, not learned from data.
+3. English only; TF-IDF does not understand meaning or sarcasm.
+
+## Future Work
+
+- Test on real paid-review data.
+- Learn the behaviour weights from real user data instead of fixed rules.
+- Support more languages and meaning-aware models.
+
+## Tech Stack
+
+Python, pandas, scikit-learn (TF-IDF, Logistic Regression, SVM, Random Forest), XGBoost, joblib (saves models), Streamlit (website), Plotly (charts)
