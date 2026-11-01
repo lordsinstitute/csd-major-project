@@ -1,5 +1,3 @@
-# Start TrustLens:   python run.py     (or  python app.py)
-# The browser opens by itself.
 import os
 import sys
 import subprocess
