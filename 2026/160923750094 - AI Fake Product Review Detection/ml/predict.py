@@ -1,5 +1,3 @@
-# One class that joins every step:
-# clean -> TF-IDF -> model -> behaviour -> trust score -> bot check -> reasons
 import os
 import joblib
 
@@ -22,7 +20,6 @@ class Analyzer:
         self.model = joblib.load(paths["best_model"])
         self.explainer = joblib.load(paths["explainer"])
 
-    # ---------- one review ----------
     def analyze(self, text, reviews_last_24h=None, account_age_days=None):
         clean = clean_text(text)
         if not clean:
@@ -31,7 +28,7 @@ class Analyzer:
                     "reasons": ["The review has no readable words."], "terms": []}
 
         X = self.vectorizer.transform([clean])
-        fake_prob = float(self.model.predict_proba(X)[0][1])      # chance the review is fake
+        fake_prob = float(self.model.predict_proba(X)[0][1])      
 
         risk, b_reasons = None, []
         if reviews_last_24h is not None:
@@ -53,11 +50,10 @@ class Analyzer:
                 "user_trust": user_score, "bot_status": status,
                 "reasons": reasons, "terms": top_terms(text, self.vectorizer, self.explainer)}
 
-    # ---------- many reviews (CSV) ----------
     def analyze_batch(self, texts, reviews_last_24h=None, account_age_days=999):
         cleaned = [clean_text(t) for t in texts]
         X = self.vectorizer.transform(cleaned)
-        probs = self.model.predict_proba(X)[:, 1]                 # all reviews at once = fast
+        probs = self.model.predict_proba(X)[:, 1]                
         results = []
         for i, text in enumerate(texts):
             p = float(probs[i]) if cleaned[i] else 0.5
