@@ -1,6 +1,3 @@
-# TrustLens - website built with Streamlit.
-# Start it with ANY of these (the browser opens by itself):
-#     python app.py        python run.py        streamlit run app.py
 import os
 import json
 
@@ -15,7 +12,6 @@ from ml.batch import analyze_dataframe
 from ml.explain import highlight_html
 from ml import train as trainer
 
-# ------------------------------------------------------------------ constants
 PAGES = ["🏠 Home", "🔍 Check a Review", "📂 Check a CSV File", "📊 Model Performance"]
 
 LEVEL_COLOR = {"Trusted": "#1a8f4c", "Needs a check": "#c77a00", "Likely fake or bot": "#c62d3a"}
@@ -44,8 +40,6 @@ CSS = """
 </style>
 """
 
-
-# ------------------------------------------------------------------ small helpers
 def badge(text, color):
     return f'<span class="tl-badge" style="background:{color}">{text}</span>'
 
@@ -91,7 +85,6 @@ def load_results():
     return pd.read_csv(path) if os.path.exists(path) else None
 
 
-# ------------------------------------------------------------------ train panel
 def train_panel():
     """Shown when the model is missing, and on the Model Performance page."""
     st.subheader("🛠️ Train the model")
@@ -126,7 +119,6 @@ def need_model():
     return analyzer
 
 
-# ------------------------------------------------------------------ pages
 def page_home():
     st.markdown("""
     <div class="tl-hero"><h1>🛡️ TrustLens</h1>
@@ -389,7 +381,6 @@ def page_model():
         train_panel()
 
 
-# ------------------------------------------------------------------ main
 def main():
     st.set_page_config(page_title="TrustLens", page_icon="🛡️", layout="wide")
     st.markdown(CSS, unsafe_allow_html=True)
@@ -414,6 +405,6 @@ def inside_streamlit():
 if __name__ == "__main__":
     if inside_streamlit():
         main()
-    else:                       # started with: python app.py
+    else:                      
         from run import launch
         launch()
