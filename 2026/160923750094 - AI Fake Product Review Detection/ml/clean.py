@@ -1,12 +1,11 @@
-# STEP 2: Clean the text so the model only sees useful words.
 import re
 
 
 def clean_text(text):
-    text = str(text).lower()                  # "GREAT" -> "great"
-    text = re.sub(r"<.*?>", " ", text)        # remove HTML tags like <br>
-    text = re.sub(r"[^a-z\s]", " ", text)     # keep only letters and spaces
-    text = re.sub(r"\s+", " ", text).strip()  # remove extra spaces
+    text = str(text).lower()                  
+    text = re.sub(r"<.*?>", " ", text)      
+    text = re.sub(r"[^a-z\s]", " ", text)     
+    text = re.sub(r"\s+", " ", text).strip() 
     return text
 
 
