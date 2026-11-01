@@ -1,7 +1,4 @@
-# STEP 5: Bot detection and the USER trust score.
-# A user is judged by two things, mixed 50/50:
-#   1. behaviour risk (many reviews in a day, very new account)
-#   2. average fake chance of the reviews this user wrote (from the text model)
+
 
 
 def user_trust_score(behavior_risk, avg_fake_prob):
