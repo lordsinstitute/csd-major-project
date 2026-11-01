@@ -1,4 +1,3 @@
-# CSV mode: check many reviews at once, and (if user_id exists) detect bot-like users.
 import pandas as pd
 
 from ml.behavior import behavior_risk
@@ -19,20 +18,20 @@ def analyze_dataframe(df, analyzer, max_rows=2000):
         raise ValueError("The CSV needs a column named review_text (or text_, text, review).")
     texts = df[col].fillna("").astype(str).tolist()
 
-    # Behaviour: how many reviews did each user post in one day?
+
     has_user = "user_id" in df.columns
     per_day, last24 = {}, None
     if has_user:
         df["user_id"] = df["user_id"].fillna("unknown").astype(str)
         totals = df.groupby("user_id").size().to_dict()
-        per_day = dict(totals)                                    # no date column: use total in file
-        if "date" in df.columns:                                  # with dates: busiest day per user
+        per_day = dict(totals)                                    
+        if "date" in df.columns:                                  
             day = pd.to_datetime(df["date"], errors="coerce").dt.date
             busiest = df.assign(_day=day).groupby(["user_id", "_day"]).size().groupby("user_id").max().to_dict()
             per_day = {u: busiest.get(u, totals[u]) for u in totals}
         last24 = [per_day[u] for u in df["user_id"]]
 
-    results = analyzer.analyze_batch(texts, last24, 999)          # 999 = account age unknown
+    results = analyzer.analyze_batch(texts, last24, 999)         
     out = pd.DataFrame(results)
     out.insert(0, "review", [t[:150] for t in texts])
     if has_user:
@@ -50,7 +49,7 @@ def analyze_dataframe(df, analyzer, max_rows=2000):
                          "status": bot_status(score), "note": why[0] if why else "Normal posting rate"})
         users = pd.DataFrame(rows).sort_values("user_trust").reset_index(drop=True)
 
-    # If the file also has a label column, check how many the model got right
+    
     accuracy = None
     if "label" in df.columns:
         truth = df["label"].astype(str).str.strip().str.lower().map(LABEL_MAP)
