@@ -1,5 +1,3 @@
-# STEP 8: Train 4 models, compare them, keep the best one (by F1 score).
-# Run:  python -m ml.train        (the website can also do this with one button)
 import os
 import sys
 import json
@@ -30,11 +28,9 @@ def main(path=None, progress=None):
     df = load_reviews(path)
     df["clean"] = df["review_text"].apply(clean_text)
 
-    # 80% train, 20% test (same fake/real ratio in both)
     X_train_text, X_test_text, y_train, y_test = train_test_split(
         df["clean"], df["label"], test_size=0.2, random_state=42, stratify=df["label"])
 
-    # TF-IDF learns its words from TRAIN only, then is applied to test
     say("Turning text into numbers (TF-IDF)...", 0.15)
     vectorizer = make_vectorizer()
     X_train = vectorizer.fit_transform(X_train_text)
@@ -66,7 +62,7 @@ def main(path=None, progress=None):
     os.makedirs(MODEL_DIR, exist_ok=True)
     joblib.dump(vectorizer, os.path.join(MODEL_DIR, "vectorizer.joblib"))
     joblib.dump(trained[best], os.path.join(MODEL_DIR, "best_model.joblib"))
-    # Logistic Regression is always saved too: its word weights are easy to explain
+   
     joblib.dump(trained["Logistic Regression"], os.path.join(MODEL_DIR, "explainer.joblib"))
     results.to_csv(os.path.join(MODEL_DIR, "results.csv"), index=False)
 
