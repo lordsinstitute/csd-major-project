@@ -1,7 +1,3 @@
-# STEP 7: Explain the score in simple words (Explainable AI).
-# Logistic Regression gives every word a weight:
-#   positive weight -> pushes toward FAKE,  negative weight -> pushes toward REAL.
-# contribution of a word = its TF-IDF value in this review x its weight.
 import html
 import re
 import numpy as np
@@ -45,7 +41,7 @@ def explain_text(text, vectorizer, explainer, top_n=4):
 def highlight_html(text, vectorizer, explainer):
     """The review text with fake-like words in red and real-like words in green."""
     weights = explainer.coef_[0]
-    scale = float(np.percentile(np.abs(weights), 99)) or 1.0    # what counts as a 'strong' word
+    scale = float(np.percentile(np.abs(weights), 99)) or 1.0   
     vocab = vectorizer.vocabulary_
     out = []
     for part in re.findall(r"[A-Za-z']+|[^A-Za-z']+", text):
