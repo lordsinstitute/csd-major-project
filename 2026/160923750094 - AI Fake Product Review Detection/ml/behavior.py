@@ -1,7 +1,3 @@
-# STEP 4: Behaviour clues. Bots post a lot, and from very new accounts.
-# In the website these two numbers are typed by the user (manual mode)
-# or calculated from the user_id and date columns (CSV mode).
-
 
 def behavior_risk(reviews_last_24h, account_age_days):
     """Returns (risk from 0 to 1, list of reasons)."""
