@@ -1,0 +1,6 @@
+services:
+  api:
+    build: ./backend
+    ports: ["8000:8000"]
+    env_file: ./backend/.env
+  # Frontend is easiest to run with `npm run dev` during development.
