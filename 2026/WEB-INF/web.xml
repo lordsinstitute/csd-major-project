@@ -1,0 +1,34 @@
+<web-app>
+<welcome-file-list>
+<welcome-file>index.jsp</welcome-file>
+</welcome-file-list>
+
+<servlet>
+     <servlet-name>SignupAction</servlet-name>
+    <servlet-class>com.SignupAction</servlet-class>
+  </servlet>
+    <servlet-mapping>
+    <servlet-name>SignupAction</servlet-name>
+    <url-pattern>/SignupAction</url-pattern>
+  </servlet-mapping>
+
+  <servlet>
+     <servlet-name>UserLoginAction</servlet-name>
+    <servlet-class>com.UserLoginAction</servlet-class>
+  </servlet>
+    <servlet-mapping>
+    <servlet-name>UserLoginAction</servlet-name>
+    <url-pattern>/UserLoginAction</url-pattern>
+  </servlet-mapping>
+
+  <servlet>
+     <servlet-name>ForgotPasswordAction</servlet-name>
+    <servlet-class>com.ForgotPasswordAction</servlet-class>
+  </servlet>
+    <servlet-mapping>
+    <servlet-name>ForgotPasswordAction</servlet-name>
+    <url-pattern>/ForgotPasswordAction</url-pattern>
+  </servlet-mapping>
+
+  
+</web-app>
