@@ -1,0 +1,134 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with verified credentials, skills, work styles, and preferences",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "fullName": { "type": "string", "maxLength": 100 },
+        "institution": { "type": "string", "maxLength": 120 },
+        "avatarUrl": { "type": "string", "maxLength": 1000 },
+        "githubUsername": { "type": "string", "maxLength": 60 },
+        "githubVerified": { "type": "boolean" },
+        "linkedinUrl": { "type": "string", "maxLength": 500 },
+        "linkedinVerified": { "type": "boolean" },
+        "preferredRoles": { "type": "array" },
+        "domainInterests": { "type": "array" },
+        "goal": { "type": "string", "maxLength": 100 },
+        "completedProfile": { "type": "boolean" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "email", "fullName"]
+    },
+    "Project": {
+      "title": "Project",
+      "description": "Hackathon or competition project manifest looking for crew members",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string", "maxLength": 120 },
+        "description": { "type": "string", "maxLength": 2000 },
+        "domain": { "type": "string", "maxLength": 60 },
+        "type": { "type": "string", "enum": ["software", "hardware", "hybrid"] },
+        "techStack": { "type": "array" },
+        "githubRepo": { "type": "string", "maxLength": 200 },
+        "deadline": { "type": "string" },
+        "leaderId": { "type": "string" },
+        "leaderName": { "type": "string", "maxLength": 100 },
+        "leaderAvatar": { "type": "string", "maxLength": 1000 },
+        "maxMembers": { "type": "number" },
+        "memberIds": { "type": "array" },
+        "members": { "type": "array" },
+        "openRoles": { "type": "array" },
+        "skillLevelRequired": { "type": "string", "enum": ["beginner", "intermediate", "advanced", "any"] },
+        "location": { "type": "string", "enum": ["remote", "in-person", "hybrid"] },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "title", "leaderId", "domain", "deadline"]
+    },
+    "JoinRequest": {
+      "title": "JoinRequest",
+      "description": "Application from a student to join a project manifest",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "projectId": { "type": "string" },
+        "projectTitle": { "type": "string", "maxLength": 120 },
+        "applicantId": { "type": "string" },
+        "applicantName": { "type": "string", "maxLength": 100 },
+        "applicantAvatar": { "type": "string", "maxLength": 1000 },
+        "leaderId": { "type": "string" },
+        "roleAppliedFor": { "type": "string", "maxLength": 60 },
+        "note": { "type": "string", "maxLength": 1000 },
+        "matchScore": { "type": "number" },
+        "matchReason": { "type": "string", "maxLength": 500 },
+        "status": { "type": "string", "enum": ["pending", "accepted", "declined"] },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "projectId", "applicantId", "leaderId", "roleAppliedFor", "status"]
+    },
+    "ProjectMessage": {
+      "title": "ProjectMessage",
+      "description": "Real-time communication message inside an accepted project manifest room",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "projectId": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string", "maxLength": 100 },
+        "senderAvatar": { "type": "string", "maxLength": 1000 },
+        "text": { "type": "string", "maxLength": 4000 },
+        "type": { "type": "string", "enum": ["text", "image", "video", "audio", "document", "code"] },
+        "attachmentUrl": { "type": "string", "maxLength": 2000 },
+        "attachmentName": { "type": "string", "maxLength": 200 },
+        "flagged": { "type": "boolean" },
+        "readBy": { "type": "array" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "projectId", "senderId", "senderName", "type"]
+    },
+    "ChatReport": {
+      "title": "ChatReport",
+      "description": "Safety violation report for audit logs",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "projectId": { "type": "string" },
+        "messageId": { "type": "string" },
+        "reporterId": { "type": "string" },
+        "reportedUserId": { "type": "string" },
+        "reason": { "type": "string", "maxLength": 200 },
+        "details": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "projectId", "reporterId", "reportedUserId", "reason"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User profiles indexed by auth UID"
+    },
+    "/projects/{projectId}": {
+      "schema": { "$ref": "#/entities/Project" },
+      "description": "Hackathon project manifests open for teammates"
+    },
+    "/joinRequests/{requestId}": {
+      "schema": { "$ref": "#/entities/JoinRequest" },
+      "description": "Teammate join applications between students and project leaders"
+    },
+    "/projects/{projectId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/ProjectMessage" },
+      "description": "Collaboration messages within project teams"
+    },
+    "/reports/{reportId}": {
+      "schema": { "$ref": "#/entities/ChatReport" },
+      "description": "Audit log for chat moderation reports"
+    }
+  }
+}
