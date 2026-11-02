@@ -1,0 +1,871 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="ST-LadderNet: urban traffic prediction dashboard for Hyderabad">
+<title>ST-LadderNet Hyderabad</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+Telugu:wght@400;500&display=swap">
+<style>
+/* Layout: navy nav rail + scrolling content. Dashboard = KPI row → map | roads to watch → trend | alerts.
+   Road detail opens in a side drawer (bottom sheet on phones). */
+:root{
+  --bg:#f2f4f9; --surface:#ffffff; --surface-2:#f6f8fc; --line:#e2e7f0; --line-strong:#cfd6e4;
+  --fg:#14203a; --muted:#56627e; --faint:#8a94ad;
+  --rail:#0f1f3d; --rail-fg:#c3cde6; --rail-active:#2563eb;
+  --accent:#2563eb; --accent-soft:#e7eefd; --accent-fg:#ffffff;
+  --low:#15803d; --low-bg:#dcf3e4; --low-line:#22a95a;
+  --mod:#b45309; --mod-bg:#fcefd6; --mod-line:#f2a20c;
+  --high:#c81e1e; --high-bg:#fde3e3; --high-line:#e5383b;
+  --jam:#7f1d1d; --jam-bg:#f4d6d6; --jam-line:#8f1d24;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100;
+  --map-land:#eef1e6; --map-water:#b9d5ec; --map-road:#ffffff; --map-ring:#c9cfdb; --map-label:#27324d;
+  --shadow:0 1px 2px rgba(20,33,61,.05),0 6px 18px rgba(20,33,61,.06);
+  --scrim:rgba(15,31,61,.35);
+  --f-ui:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  --f-te:"Noto Sans Telugu","Nirmala UI","Gautami",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0a1120; --surface:#111a2e; --surface-2:#162138; --line:#223050; --line-strong:#2f3f63;
+  --fg:#e6ebf7; --muted:#a0abc5; --faint:#6d7996;
+  --rail:#060c18; --rail-fg:#a7b4d2; --rail-active:#3b74f0;
+  --accent:#6b9bf7; --accent-soft:#1a2a4d; --accent-fg:#0a1120;
+  --low:#4ade80; --low-bg:#10321f; --low-line:#34c46e;
+  --mod:#fbbf24; --mod-bg:#382a0d; --mod-line:#f7b23b;
+  --high:#fb923c; --high-bg:#3d2113; --high-line:#f97a4a;
+  --jam:#fb7185; --jam-bg:#4a1422; --jam-line:#e11d48;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+  --map-land:#16213a; --map-water:#1d3b5c; --map-road:#25324f; --map-ring:#34425f; --map-label:#d7def0;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.25);
+  --scrim:rgba(0,0,0,.55);
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0a1120; --surface:#111a2e; --surface-2:#162138; --line:#223050; --line-strong:#2f3f63;
+  --fg:#e6ebf7; --muted:#a0abc5; --faint:#6d7996;
+  --rail:#060c18; --rail-fg:#a7b4d2; --rail-active:#3b74f0;
+  --accent:#6b9bf7; --accent-soft:#1a2a4d; --accent-fg:#0a1120;
+  --low:#4ade80; --low-bg:#10321f; --low-line:#34c46e;
+  --mod:#fbbf24; --mod-bg:#382a0d; --mod-line:#f7b23b;
+  --high:#fb923c; --high-bg:#3d2113; --high-line:#f97a4a;
+  --jam:#fb7185; --jam-bg:#4a1422; --jam-line:#e11d48;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+  --map-land:#16213a; --map-water:#1d3b5c; --map-road:#25324f; --map-ring:#34425f; --map-label:#d7def0;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.25);
+  --scrim:rgba(0,0,0,.55);
+  color-scheme:dark}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0}
+img{max-width:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-ui);font-size:14px;line-height:1.45}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+.app{display:grid;grid-template-columns:236px minmax(0,1fr);min-height:100%;background:linear-gradient(to right,var(--rail) 236px,transparent 236px)}
+
+/* ---- Rail ---- */
+.rail{background:var(--rail);color:var(--rail-fg);padding:22px 14px;display:flex;flex-direction:column;gap:26px;position:sticky;top:0;height:100vh}
+.brand{display:flex;gap:10px;align-items:center;padding:0 4px}
+.brand svg{flex:none}
+.brand b{display:block;color:#fff;font-size:18px;letter-spacing:-.01em}
+.brand span{font-size:12px}
+.nav{display:flex;flex-direction:column;gap:4px}
+.nav button{all:unset;cursor:pointer;display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:9px;font-weight:500;white-space:nowrap;color:var(--rail-fg)}
+.nav button:hover{background:rgba(255,255,255,.07);color:#fff}
+.nav button[aria-current="page"]{background:var(--rail-active);color:#fff}
+.nav button:focus-visible{outline:2px solid #fff;outline-offset:-2px}
+.nav svg{width:18px;height:18px;flex:none}
+.status{margin-top:auto;border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:12px;font-size:12px;display:grid;gap:4px}
+.status b{display:flex;align-items:center;gap:8px;color:#fff;font-size:13px;font-weight:600}
+.dot{width:9px;height:9px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.22)}
+.dot.warn{background:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,.22)}
+.dot.bad{background:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.22)}
+
+/* ---- Main ---- */
+main{padding-block:16px 28px;padding-inline:28px;min-width:0;display:flex;flex-direction:column;gap:16px}
+.topbar{display:flex;justify-content:flex-end;align-items:center;gap:12px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:600;white-space:nowrap}
+.chip.mode-live{color:var(--low)}
+.chip.mode-sim{color:var(--mod)}
+.chip.mode-demo{color:var(--muted)}
+.city{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:6px 12px;font-weight:600}
+.city select{border:0;background:transparent;font-weight:600}
+.bell-wrap{position:relative}
+.bell{position:relative;background:none;border:0;padding:6px;color:var(--muted);border-radius:8px}
+.bell:hover{background:var(--surface)}
+.bell i{position:absolute;top:0;right:0;background:var(--high-line);color:#fff;font-style:normal;font-size:10px;font-weight:700;border-radius:9px;padding:1px 5px;min-width:16px;text-align:center}
+.pop{position:absolute;right:0;top:calc(100% + 6px);width:min(340px,calc(100vw - 32px));background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);z-index:30;padding:8px}
+.pop h3{margin:6px 8px 8px;font-size:13px}
+.pop button.alert{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;padding:9px 8px;border-radius:8px;width:100%}
+.pop button.alert:hover,.pop button.alert:focus-visible{background:var(--surface-2)}
+.pop small{color:var(--muted);grid-column:1}
+.pop .empty{padding:10px 8px;color:var(--muted);font-size:13px}
+.user{display:flex;align-items:center;gap:10px;font-weight:600}
+.avatar{width:34px;height:34px;border-radius:50%;background:var(--accent);color:var(--accent-fg);display:grid;place-items:center;font-size:13px}
+
+.banner{display:flex;gap:10px;align-items:center;padding:10px 14px;border-radius:10px;background:var(--mod-bg);color:var(--fg);border:1px solid var(--mod-line);font-size:13px}
+.banner button{margin-left:auto;border:1px solid var(--line-strong);background:var(--surface);border-radius:8px;padding:4px 10px;font-weight:600}
+
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.head h1{margin:0;font-size:26px;letter-spacing:-.02em;text-wrap:balance}
+.head p{margin:4px 0 0;color:var(--muted)}
+.clock{color:var(--muted);display:flex;gap:8px;align-items:center;font-size:13px}
+
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);min-width:0}
+.kpi{display:flex;gap:14px;padding:16px 18px;align-items:flex-start}
+.kpi .ic{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;flex:none}
+.kpi .ic svg{width:20px;height:20px}
+.kpi h3{margin:0;font-size:13px;font-weight:500;color:var(--muted)}
+.kpi .v{font-size:28px;font-weight:700;letter-spacing:-.02em;margin:4px 0 2px;font-variant-numeric:tabular-nums;line-height:1.15}
+.kpi .v small{font-size:16px;font-weight:600;color:var(--muted)}
+.kpi .sub{font-size:12px;color:var(--muted)}
+.up{color:var(--low);font-weight:600}.down{color:var(--high);font-weight:600}
+
+.grid2{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:14px}
+.grid2 > .card{display:flex;flex-direction:column}
+.card-h{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 16px 10px;flex-wrap:wrap}
+.card-h h2{margin:0;font-size:15.5px;font-weight:700;display:flex;align-items:center;gap:8px}
+.card-h h2 svg{width:18px;height:18px;flex:none}
+.hint{font-size:12px;color:var(--muted)}
+.tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+select.sm,input.sm{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 9px;font-size:12.5px}
+input.sm{min-width:0;width:200px}
+.link{border:0;background:none;color:var(--accent);font-weight:600;font-size:12.5px;padding:4px 2px}
+.link:hover{text-decoration:underline}
+
+/* ---- Map ---- */
+.map-wrap{position:relative;margin:0 12px 12px;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:var(--map-land);flex:1;min-height:320px}
+.map-wrap > svg{display:block;width:100%;height:auto;touch-action:none}
+.map-wrap .leaflet-container{position:absolute;inset:0;background:var(--map-land);font-family:var(--f-ui)}
+.legend{position:absolute;left:10px;bottom:10px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:11.5px;display:grid;gap:3px;z-index:500}
+.legend b{font-size:12px;margin-bottom:2px}
+.legend span{display:flex;align-items:center;gap:7px}
+.legend i{width:20px;height:4px;border-radius:2px;display:inline-block}
+.zoom{position:absolute;left:10px;top:10px;display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden;z-index:500}
+.zoom button{border:0;background:none;width:32px;height:30px;font-size:16px;font-weight:600;display:grid;place-items:center}
+.zoom button:hover{background:var(--surface-2)}
+.zoom button+button{border-top:1px solid var(--line)}
+.road{fill:none;stroke-linecap:round;stroke-linejoin:round;cursor:pointer}
+.road-halo{fill:none;stroke:var(--surface);stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+.road-hit{fill:none;stroke:transparent;stroke-width:22;cursor:pointer}
+.road-sel{fill:none;stroke:var(--accent);stroke-opacity:.35;stroke-linecap:round;pointer-events:none}
+.lbl{font-size:12.5px;font-weight:600;fill:var(--map-label);paint-order:stroke;stroke:var(--map-land);stroke-width:3.5px;pointer-events:none}
+.lbl-te{font-family:var(--f-te);font-size:10px;fill:var(--map-label);opacity:.75;paint-order:stroke;stroke:var(--map-land);stroke-width:3px;pointer-events:none}
+.lbl-big{font-size:19px;font-weight:800}
+.maptip{position:fixed;pointer-events:none;background:var(--fg);color:var(--bg);font-size:12px;padding:6px 9px;border-radius:7px;white-space:nowrap;transform:translate(-50%,calc(-100% - 12px));z-index:60}
+
+/* ---- Tables ---- */
+.tbl-wrap{overflow-x:auto;padding:0 8px 8px}
+table{width:100%;border-collapse:collapse;min-width:460px}
+th{font-size:11.5px;font-weight:600;color:var(--muted);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:bottom}
+th.r,td.r{text-align:right}
+td{padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+tbody tr:last-child td{border-bottom:0}
+tbody tr{cursor:pointer}
+tbody tr:hover,tbody tr.sel{background:var(--surface-2)}
+tbody tr:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+td.road-n{font-weight:600;font-size:13px;line-height:1.3}
+td.road-n small{display:block;font-weight:400;color:var(--muted);font-size:11.5px}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:2px 9px 2px 7px;border-radius:999px;white-space:nowrap}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.p-0{background:var(--low-bg);color:var(--low)}
+.p-1{background:var(--mod-bg);color:var(--mod)}
+.p-2{background:var(--high-bg);color:var(--high)}
+.p-3{background:var(--jam-bg);color:var(--jam)}
+.t-0{color:var(--low)}.t-1{color:var(--mod)}.t-2{color:var(--high)}.t-3{color:var(--jam)}
+.delta{font-size:11.5px;font-weight:600;margin-left:4px}
+.empty-row td{text-align:center;color:var(--muted);cursor:default;padding:24px}
+.card-f{margin-top:auto;padding:8px 16px 14px;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+
+/* ---- Model panel ---- */
+.ladder{margin:0 16px 14px;padding:12px;border-radius:10px;background:var(--accent-soft);font-size:12.5px;display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:center}
+.ladder .rungs{display:flex;gap:8px;align-items:flex-end}
+.ladder .rungs figure{margin:0;display:grid;gap:3px;justify-items:center;font-size:10px;color:var(--muted)}
+.ladder p{margin:0}
+
+/* ---- Charts ---- */
+.legend-row{display:flex;gap:6px;flex-wrap:wrap}
+.tg{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 10px 4px 8px;font-size:12px;font-weight:600}
+.tg i{width:10px;height:10px;border-radius:50%;border:2px solid var(--line-strong)}
+.tg[aria-pressed="true"]{background:var(--surface-2);border-color:var(--line-strong)}
+.tg[aria-pressed="false"]{color:var(--muted)}
+.tg[aria-pressed="false"] i{background:transparent!important}
+.chart{position:relative;padding:0 12px 12px}
+.chart svg{width:100%;height:auto;display:block;overflow:visible}
+.chart{min-width:0}
+.axis text{font-size:11px;fill:var(--muted);font-family:var(--f-num)}
+.gridl{stroke:var(--line);stroke-width:1}
+.base{stroke:var(--line-strong);stroke-width:1}
+.cross{stroke:var(--faint);stroke-width:1;stroke-dasharray:3 3}
+.ctip{position:absolute;pointer-events:none;background:var(--surface);border:1px solid var(--line-strong);box-shadow:var(--shadow);border-radius:9px;padding:8px 10px;font-size:12px;min-width:150px;z-index:10}
+.ctip b{display:block;margin-bottom:4px;font-size:12px}
+.ctip div{display:flex;align-items:center;gap:7px;justify-content:space-between}
+.ctip span{display:flex;align-items:center;gap:6px;color:var(--muted)}
+.ctip i{width:8px;height:8px;border-radius:50%}
+
+/* ---- Alerts list ---- */
+.clist{list-style:none;margin:0;padding:0 16px 10px}
+.clist li{border-bottom:1px solid var(--line)}
+.clist li:last-child{border-bottom:0}
+.clist button{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:74px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 4px;width:100%;font-size:13px;border-radius:6px}
+.clist button:hover{background:var(--surface-2)}
+.clist button:focus-visible{outline:2px solid var(--accent)}
+.clist small{color:var(--muted);display:block}
+.clist .none{padding:20px 4px;color:var(--muted);text-align:center}
+
+/* ---- Drawer ---- */
+.scrim{position:fixed;inset:0;background:var(--scrim);z-index:40}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(480px,100%);background:var(--surface);border-left:1px solid var(--line);z-index:41;display:flex;flex-direction:column;box-shadow:var(--shadow);padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.drawer header{display:flex;gap:10px;align-items:flex-start;padding:18px 18px 12px;border-bottom:1px solid var(--line)}
+.drawer header h2{margin:0;font-size:18px;text-wrap:balance}
+.drawer header p{margin:2px 0 0;color:var(--muted);font-size:12.5px}
+.drawer .x{margin-left:auto;border:1px solid var(--line);background:var(--surface);border-radius:8px;width:34px;height:34px;display:grid;place-items:center;flex:none}
+.drawer .body{overflow-y:auto;padding:16px 18px 24px;display:flex;flex-direction:column;gap:18px}
+.big{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.big .n{font-size:40px;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums;line-height:1}
+.facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.facts div{background:var(--surface-2);border-radius:9px;padding:9px 10px}
+.facts dt{font-size:11px;color:var(--muted)}
+.facts dd{margin:2px 0 0;font-weight:700;font-variant-numeric:tabular-nums}
+.hz{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.hz div{border:1px solid var(--line);border-radius:10px;padding:9px 10px;display:grid;gap:3px}
+.hz small{color:var(--muted);font-size:11px}
+.hz b{font-size:17px;font-variant-numeric:tabular-nums}
+.advice{padding:12px 14px;border-radius:10px;background:var(--accent-soft);font-size:13px}
+.drawer h3{margin:0 0 6px;font-size:13px}
+.keys{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin-top:4px}
+.keys span{display:flex;align-items:center;gap:6px}
+.keys i{width:16px;height:0;border-top:2px solid}
+
+/* ---- Settings ---- */
+.form{padding:4px 18px 18px;display:grid;gap:18px;max-width:600px}
+.form label{display:grid;gap:6px;font-weight:600;font-size:13px}
+.form label span{font-weight:400;color:var(--muted);font-size:12.5px}
+.form select,.form input{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 10px;width:100%}
+.row{display:flex;gap:8px}
+.btn{border:0;background:var(--accent);color:var(--accent-fg);border-radius:8px;padding:8px 14px;font-weight:700;white-space:nowrap}
+.btn.ghost{background:var(--surface);color:var(--fg);border:1px solid var(--line-strong)}
+.note{font-size:12.5px;color:var(--muted)}
+.ok{color:var(--low)}.bad{color:var(--high)}
+dl.info{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:6px 14px;margin:0;font-size:13px}
+dl.info dt{color:var(--muted)}
+dl.info dd{margin:0;font-weight:600;overflow-wrap:anywhere}
+
+.foot{font-size:12px;color:var(--faint);text-align:center;margin:4px 0 0}
+
+@media (max-width:1200px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:1000px){.grid2{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:820px){
+  .app{grid-template-columns:minmax(0,1fr);background:none}
+  .rail{position:sticky;top:env(safe-area-inset-top,0px);height:auto;flex-direction:row;align-items:center;gap:12px;padding:10px 16px;z-index:20;overflow-x:auto}
+  .brand span,.status{display:none}
+  .brand b{font-size:15px}
+  .nav{flex-direction:row}
+  .nav button{padding:8px 10px}
+  .nav button .t{display:none}
+  main{padding-inline:16px}
+  .user .nm,.city{display:none}
+  .drawer{top:auto;width:100%;max-height:88vh;border-left:0;border-top:1px solid var(--line);border-radius:16px 16px 0 0}
+}
+@media (max-width:480px){
+  .kpis{grid-template-columns:minmax(0,1fr)}
+  .head h1{font-size:22px}
+  .lbl-te{display:none}
+  .facts{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .hz{grid-template-columns:repeat(2,minmax(0,1fr))}
+  input.sm{width:100%}
+  .ladder{grid-template-columns:minmax(0,1fr)}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+</head>
+<body>
+<div class="app">
+  <aside class="rail">
+    <div class="brand">
+      <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true"><path d="M4 36 L16 4 H24 L36 36 Z" fill="#2563eb"/><path d="M20 8 V14 M20 18 V24 M20 28 V34" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/><path d="M12 36 L18 18 M28 36 L22 18" stroke="#93b4fb" stroke-width="1.6"/></svg>
+      <div><b>ST-LadderNet</b><span>Urban Traffic Prediction</span></div>
+    </div>
+    <nav class="nav" aria-label="Main">
+      <button data-view="dash" aria-current="page"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 11 12 3l9 8v10h-6v-6H9v6H3z"/></svg><span class="t">Dashboard</span></button>
+      <button data-view="map"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg><span class="t">Live Map</span></button>
+      <button data-view="pred"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M3 20h18M4 16l5-5 4 3 7-7"/></svg><span class="t">Predictions</span></button>
+      <button data-view="ana"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="3" y="12" width="4" height="9" rx="1"/><rect x="10" y="7" width="4" height="14" rx="1"/><rect x="17" y="3" width="4" height="18" rx="1"/></svg><span class="t">Traffic Analytics</span></button>
+      <button data-view="set"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg><span class="t">Settings</span></button>
+    </nav>
+    <div class="status">
+      <b><span class="dot" id="statusDot"></span><span id="statusTxt">Connecting…</span></b>
+      <span>Last reading: <span id="lastUpd" class="num">–</span></span>
+      <span id="statusNote"></span>
+    </div>
+  </aside>
+
+  <main>
+    <div class="topbar">
+      <span class="chip mode-demo" id="modeChip" title="">Demo data</span>
+      <span class="chip" id="wxChip" hidden></span>
+      <label class="city"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg><span class="sr">City</span><select id="citySel"><option>Hyderabad</option></select></label>
+      <div class="bell-wrap">
+        <button class="bell" id="bellBtn" aria-label="Congestion alerts" aria-expanded="false" aria-controls="alertPop"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.5-2.5h-5A2.5 2.5 0 0 0 12 22zm7-6V11a7 7 0 0 0-5-6.7V3.5a2 2 0 0 0-4 0v.8A7 7 0 0 0 5 11v5l-2 2v1h18v-1z"/></svg><i id="bellN" hidden>0</i></button>
+        <div class="pop" id="alertPop" hidden><h3>Forecast alerts · next hour</h3><div id="alertPopList"></div></div>
+      </div>
+      <div class="user"><span class="avatar">AS</span><span class="nm">Student</span></div>
+    </div>
+
+    <div class="banner" id="errBanner" hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="var(--mod-line)" aria-hidden="true"><path d="M12 2 1 21h22zm-1 7h2v6h-2zm0 8h2v2h-2z"/></svg><span id="errTxt"></span><button id="retryBtn">Retry now</button></div>
+
+    <div class="head">
+      <div><h1 id="pageTitle">Welcome to ST-LadderNet</h1><p id="pageSub">Real-time traffic monitoring and prediction for a smarter Hyderabad.</p></div>
+      <div class="clock"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span id="clock" class="num">–</span></div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <section id="v-dash" class="view" style="display:flex;flex-direction:column;gap:14px">
+      <div class="kpis">
+        <div class="card kpi"><div class="ic" style="background:var(--low-bg);color:var(--low)"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 3h2l-3 18H5zM14 3h2l3 18h-2zM11.2 5h1.6v3h-1.6zm0 5h1.6v3h-1.6zm0 5h1.6v3h-1.6z"/></svg></div><div><h3>Corridors Monitored</h3><div class="v num" id="kRoads">–</div><div class="sub">across Hyderabad</div></div></div>
+        <div class="card kpi"><div class="ic" style="background:var(--accent-soft);color:var(--accent)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 16a8 8 0 1 1 16 0"/><path d="M12 16l4-5"/></svg></div><div><h3>Average Speed</h3><div class="v"><span id="kSpeed" class="num">–</span> <small>km/h</small></div><div class="sub" id="kSpeedD">&nbsp;</div></div></div>
+        <div class="card kpi"><div class="ic" style="background:var(--high-bg);color:var(--high)"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2 1 21h22zm-1 7h2v6h-2zm0 8h2v2h-2z"/></svg></div><div><h3>Congested Roads</h3><div class="v num" id="kCong">–</div><div class="sub">high or congested, out of <span id="kOf">–</span></div></div></div>
+        <div class="card kpi"><div class="ic" style="background:var(--accent-soft);color:var(--accent)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M3 20h18M5 15l4-4 3 3 7-7M15 7h4v4"/></svg></div><div><h3>Prediction Accuracy</h3><div class="v"><span id="kAcc" class="num">–</span><small id="kAccU">%</small></div><div class="sub" id="kAccD">1 − MAPE, last 24 h</div></div></div>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <div class="card-h"><h2>Live Traffic Map – Hyderabad</h2><span class="hint">Tap a road for its forecast</span></div>
+          <div class="map-wrap" data-map="dash"></div>
+        </div>
+        <div class="card">
+          <div class="card-h">
+            <h2><svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.4" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Roads to Watch</h2>
+            <label><span class="sr">Forecast horizon</span><select class="sm horizonSel"></select></label>
+          </div>
+          <div class="tbl-wrap"><table><thead><tr><th>Road</th><th>Now</th><th class="r">Current km/h</th><th class="r">Predicted km/h</th><th>Last hour · forecast</th></tr></thead><tbody data-tbl="dash"></tbody></table></div>
+          <div class="card-f"><span class="hint" id="modelNote"></span><button class="link" data-goto="pred">View all corridors →</button></div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <div class="card-h"><h2>Speed Trend · Last 6 Hours</h2><div class="legend-row" data-legend="dash"></div></div>
+          <div class="chart" data-chart="dash"></div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h2><svg viewBox="0 0 24 24" fill="var(--high-line)" aria-hidden="true"><path d="M12 2 1 21h22zm-1 7h2v6h-2zm0 8h2v2h-2z"/></svg>Predicted Congestion · Next Hour</h2></div>
+          <ul class="clist" id="clist"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- LIVE MAP -->
+    <section id="v-map" class="view" hidden>
+      <div class="grid2">
+        <div class="card"><div class="card-h"><h2>Road Network – Current Conditions</h2><span class="hint" id="mapNote">Updates with every new reading</span></div><div class="map-wrap" data-map="big" style="min-height:460px"></div></div>
+        <div class="card"><div class="card-h"><h2>All Corridors Now</h2></div><div class="tbl-wrap"><table><thead><tr><th>Road</th><th>Level</th><th class="r">Speed km/h</th><th class="r">Delay</th></tr></thead><tbody id="nowTbl"></tbody></table></div></div>
+      </div>
+    </section>
+
+    <!-- PREDICTIONS -->
+    <section id="v-pred" class="view" hidden>
+      <div class="card">
+        <div class="card-h">
+          <h2>Forecasts for Every Corridor</h2>
+          <div class="tools">
+            <label><span class="sr">Search roads</span><input class="sm" id="search" type="search" placeholder="Search roads or areas"></label>
+            <label><span class="sr">Sort</span><select class="sm" id="sortSel"><option value="worst">Worst predicted first</option><option value="drop">Biggest slowdown first</option><option value="name">Name A–Z</option></select></label>
+            <label><span class="sr">Forecast horizon</span><select class="sm horizonSel"></select></label>
+          </div>
+        </div>
+        <div class="tbl-wrap"><table><thead><tr><th>Road</th><th>Now</th><th class="r">Current km/h</th><th class="r">Predicted km/h</th><th>Last hour · forecast</th></tr></thead><tbody data-tbl="all"></tbody></table></div>
+        <div class="ladder" id="ladderPanel"></div>
+      </div>
+    </section>
+
+    <!-- ANALYTICS -->
+    <section id="v-ana" class="view" hidden style="flex-direction:column;gap:14px">
+      <div class="card">
+        <div class="card-h"><h2>Speed Trend · Last 6 Hours</h2><div class="legend-row" data-legend="ana"></div></div>
+        <p class="hint" style="margin:-4px 16px 6px">Pick up to four roads to compare.</p>
+        <div class="chart" data-chart="ana"></div>
+      </div>
+      <div class="grid2">
+        <div class="card">
+          <div class="card-h"><h2>When the City Jams</h2><span class="hint">Share of corridors high or congested, by hour (IST)</span></div>
+          <div class="chart" id="hourChart"></div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h2>Model Performance</h2></div>
+          <div style="padding:4px 18px 18px"><dl class="info" id="perfInfo"></dl></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="v-set" class="view" hidden>
+      <div class="card">
+        <div class="card-h"><h2>Settings</h2></div>
+        <div class="form">
+          <label for="apiIn">Backend server
+            <span>Where the Flask API runs. Leave blank when this page is served by the backend itself.</span>
+            <div class="row"><input id="apiIn" type="url" placeholder="http://localhost:8000"><button class="btn" id="apiBtn" type="button">Connect</button></div>
+            <span id="apiMsg" class="note"></span>
+          </label>
+          <label for="refSel">Refresh interval<span>How often the page asks for new data.</span>
+            <select id="refSel"><option value="5000">Every 5 seconds</option><option value="15000">Every 15 seconds</option><option value="60000">Every minute</option><option value="0">Paused</option></select></label>
+          <label for="defH">Default forecast horizon<select id="defH"></select></label>
+          <label for="themeSel">Theme<select id="themeSel"><option value="">Match system</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+          <div><h3 style="margin:0 0 8px;font-size:13px">Connection</h3><dl class="info" id="connInfo"></dl></div>
+        </div>
+      </div>
+    </section>
+
+    <p class="foot" id="foot"></p>
+  </main>
+</div>
+
+<div class="scrim" id="scrim" hidden></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="dTitle" hidden>
+  <header><div><h2 id="dTitle">Road</h2><p id="dSub"></p></div><button class="x" id="dClose" aria-label="Close details"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></header>
+  <div class="body" id="dBody"></div>
+</aside>
+<div class="maptip" id="maptip" hidden></div>
+
+<script>
+(function(){
+"use strict";
+/* ============================================================
+   Config & shared helpers
+   ============================================================ */
+const HORIZONS=[15,30,45,60];
+const LV=["Low","Moderate","High","Congested"];
+const LINE=["var(--low-line)","var(--mod-line)","var(--high-line)","var(--jam-line)"];
+const SERIES=["var(--s1)","var(--s2)","var(--s3)","var(--s4)"];
+const IST=5.5*3600;
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function lvOf(speed,free){const q=free?speed/free:1;return q>.7?0:q>.5?1:q>.35?2:3}
+function fmtT(ms){return new Date(ms).toLocaleTimeString("en-IN",{timeZone:"Asia/Kolkata",hour:"numeric",minute:"2-digit",hour12:true}).toUpperCase()}
+function fmtD(ms){return new Date(ms).toLocaleDateString("en-IN",{timeZone:"Asia/Kolkata",weekday:"short",day:"numeric",month:"short",year:"numeric"})}
+function hourLbl(h){h=((h%24)+24)%24;return `${h%12||12} ${h<12?"AM":"PM"}`}
+function store(k,v){try{if(v===undefined)return JSON.parse(localStorage.getItem("stl."+k));localStorage.setItem("stl."+k,JSON.stringify(v))}catch(e){return null}}
+
+/* ============================================================
+   Road catalogue (mirrors backend/roads.py; used by demo mode)
+   ============================================================ */
+const CATALOGUE=[
+ [1,"NH 65 (Miyapur → Hitech City)","NH 65","via JNTU, KPHB",60,.72,[[17.4968,78.3614],[17.4945,78.38],[17.4933,78.3914],[17.484,78.389],[17.464,78.383],[17.4435,78.3772]]],
+ [2,"Banjara Hills Road No. 1","Banjara Hills","Panjagutta → Road No. 12",50,.55,[[17.4262,78.4508],[17.419,78.442],[17.413,78.434]]],
+ [3,"Tank Bund","Tank Bund","Hussain Sagar east bank",60,.28,[[17.4095,78.476],[17.418,78.48],[17.4265,78.484]]],
+ [4,"LB Nagar Road","LB Nagar","Dilsukhnagar → LB Nagar",55,.5,[[17.3688,78.5247],[17.358,78.539],[17.3457,78.5522]]],
+ [5,"Gachibowli Flyover","Gachibowli","ORR junction → Biodiversity",55,.7,[[17.4401,78.3489],[17.442,78.358],[17.444,78.366]]],
+ [6,"Begumpet Road","Begumpet","Ameerpet → Paradise",55,.58,[[17.4375,78.4483],[17.4447,78.4664],[17.4436,78.486]]],
+ [7,"Secunderabad → Uppal","Uppal","via Tarnaka",55,.6,[[17.4399,78.4983],[17.4282,78.539],[17.4058,78.5591]]],
+ [8,"Mehdipatnam → Masab Tank","Mehdipatnam","PVNR Expressway feed",50,.52,[[17.395,78.438],[17.3985,78.445],[17.4015,78.4515]]],
+ [9,"Charminar → Afzalgunj","Charminar","Old City",40,.55,[[17.3616,78.4747],[17.369,78.476],[17.376,78.476]]],
+ [10,"Jubilee Hills Road No. 36","Jubilee Hills","Checkpost → Madhapur",50,.6,[[17.429,78.416],[17.433,78.406],[17.439,78.396]]],
+ [11,"Kukatpally → Ameerpet","Ameerpet","NH 65 inner stretch",55,.62,[[17.4849,78.4138],[17.46,78.428],[17.448,78.439],[17.4375,78.4483]]],
+ [12,"ORR Shamshabad Stretch","ORR South","Airport access",100,.18,[[17.27,78.39],[17.248,78.42],[17.239,78.46]]]
+].map(([id,name,short,sub,free,sens,geometry])=>({id,name,short,sub,free_flow:free,sens,geometry,length_km:lengthKm(geometry)}));
+function lengthKm(g){let d=0;for(let i=1;i<g.length;i++){const[a,b]=[g[i-1],g[i]],R=Math.PI/180,x=Math.sin((b[0]-a[0])*R/2)**2+Math.cos(a[0]*R)*Math.cos(b[0]*R)*Math.sin((b[1]-a[1])*R/2)**2;d+=2*6371*Math.asin(Math.sqrt(x))}return Math.round(d*100)/100}
+
+/* ============================================================
+   Demo data source (same formula as backend simulator)
+   ============================================================ */
+const Demo=(()=>{
+  const rnd=n=>{const x=Math.sin(n*12.9898+78.233)*43758.5453;return x-Math.floor(x)};
+  const peak=h=>Math.exp(-((h-9.6)**2)/1.4)+1.15*Math.exp(-((h-19)**2)/2.2)+.35*Math.exp(-((h-13.5)**2)/3);
+  function sim(r,ts){const h=(((ts/3600)+5.5)%24+24)%24,b=Math.floor(ts/600),fr=(ts%600)/600;
+    const n=(rnd(r.id*977+b)*(1-fr)+rnd(r.id*977+b+1)*fr-.5)*.14;
+    return r.free_flow*Math.max(.14,Math.min(1,1-r.sens*Math.min(1.15,peak(h))+n))}
+  let jit={};
+  function cur(r,ts){return Math.max(3,sim(r,ts)+(jit[r.id]||0))}
+  function fc(r,ts,h){return Math.max(3,sim(r,ts+h*60)*(1+(rnd(r.id*31+Math.floor(ts/60)+h)-.5)*.06))}
+  function snapshot(){
+    const now=Date.now()/1000;
+    CATALOGUE.forEach(r=>{jit[r.id]=Math.max(-3,Math.min(3,(jit[r.id]||0)*.6+(Math.random()-.5)*2.4))});
+    const current={},forecast={},history={};
+    CATALOGUE.forEach(r=>{
+      current[r.id]={speed:cur(r,now),free_flow:r.free_flow,ts:now*1000};
+      forecast[r.id]={};HORIZONS.forEach(h=>forecast[r.id][h]=fc(r,now,h));
+      const hs=[],t0=Math.floor((now-6*3600)/300)*300;for(let t=t0;t<now;t+=300)hs.push([t*1000,sim(r,t)]);hs.push([now*1000,current[r.id].speed]);history[r.id]=hs});
+    const sp=CATALOGUE.map(r=>current[r.id].speed),prev=CATALOGUE.map(r=>sim(r,now-3600));
+    let e=0,n=0;for(let m=0;m<24*60;m+=30)CATALOGUE.forEach(r=>{e+=Math.abs((rnd(r.id*7+m)-.5)*.17);n++});
+    const profile=[];for(let h=0;h<24;h++){let bad=0,tot=0;for(let d=1;d<=7;d++)for(let m=0;m<60;m+=10){const t=Math.floor(now/86400)*86400-IST-d*86400+(h*60+m)*60;CATALOGUE.forEach(r=>{tot++;if(lvOf(sim(r,t),r.free_flow)>=2)bad++})}profile.push(bad/tot*100)}
+    return {mode:"demo",source:"demo",model:"demo",roads:CATALOGUE,current,forecast,history,
+      stats:{avg:sp.reduce((a,b)=>a+b)/sp.length,prev:prev.reduce((a,b)=>a+b)/prev.length,accuracy:100-e/n*100,accuracyN:n},
+      alerts:null,profile,weather:null,lastReadingAt:now*1000,forecastMadeAt:now*1000,generatedAt:now*1000,interval:null};
+  }
+  function detail(id){const r=CATALOGUE.find(x=>x.id===id),now=Date.now()/1000,hist=[],typ=[];
+    const t0=Math.floor((now-24*3600)/300)*300;for(let t=t0;t<now;t+=300)hist.push([t*1000,sim(r,t)]);hist.push([now*1000,cur(r,now)]);
+    for(let k=0;k<48;k++){let s=0;for(let d=1;d<=7;d++){const t=Math.floor(now/86400)*86400-IST-d*86400+k*1800;s+=sim(r,t)}typ.push(s/7)}
+    return Promise.resolve({history:hist,typical:typ})}
+  return {snapshot,detail};
+})();
+
+/* ============================================================
+   Live data source (Flask backend)
+   ============================================================ */
+const Live={
+  base:"",
+  url(p){return (this.base||"").replace(/\/$/,"")+p},
+  async get(p,timeout=8000){const c=new AbortController(),t=setTimeout(()=>c.abort(),timeout);
+    try{const r=await fetch(this.url(p),{signal:c.signal,cache:"no-store"});if(!r.ok)throw new Error(`Server answered ${r.status}`);return await r.json()}finally{clearTimeout(t)}},
+  async probe(){const h=await this.get("/api/health",3000);if(!h||!h.ok)throw new Error("Unexpected health response");return h},
+  async snapshot(){const d=await this.get("/api/snapshot");
+    const current={},forecast={},history={};
+    for(const[k,v]of Object.entries(d.current||{}))current[+k]={speed:v.speed,free_flow:v.free_flow,ts:v.ts*1000};
+    for(const[k,v]of Object.entries(d.forecast||{})){forecast[+k]={};for(const[h,s]of Object.entries(v))forecast[+k][+h]=s}
+    for(const[k,v]of Object.entries(d.history||{}))history[+k]=v.map(([t,s])=>[t*1000,s]);
+    const s=d.stats||{};
+    return {mode:"live",source:d.source,model:d.model,roads:d.roads,current,forecast,history,
+      stats:{avg:s.avg_speed,prev:s.avg_speed_prev,accuracy:s.accuracy,accuracyN:s.accuracy_n},
+      alerts:(d.alerts||[]).map(a=>({id:a.road_id,level:LV.findIndex(l=>l.toLowerCase()===a.level),horizon:a.horizon,at:a.target_ts*1000})),
+      profile:d.profile,weather:d.weather,lastReadingAt:d.last_reading_at?d.last_reading_at*1000:null,
+      forecastMadeAt:d.forecast_made_at?d.forecast_made_at*1000:null,generatedAt:d.generated_at*1000,
+      nextAt:d.next_collection_at?d.next_collection_at*1000:null,health:this.health}},
+  async detail(id){const d=await this.get(`/api/roads/${id}?hours=24`);return {history:d.history.map(([t,s])=>[t*1000,s]),typical:d.typical_half_hourly_ist}}
+};
+
+/* ============================================================
+   State
+   ============================================================ */
+const saved=store("prefs")||{};
+const UI={view:"dash",horizon:saved.horizon||30,refresh:saved.refresh??15000,theme:saved.theme||"",api:saved.api||"",
+  sel:null,search:"",sort:"worst",trend:{dash:null,ana:null},failures:0};
+let S=null,SRC=Demo,timer=null;
+function savePrefs(){store("prefs",{horizon:UI.horizon,refresh:UI.refresh,theme:UI.theme,api:UI.api})}
+function applyTheme(){if(UI.theme)document.documentElement.setAttribute("data-theme",UI.theme);else document.documentElement.removeAttribute("data-theme")}
+applyTheme();
+
+const road=id=>S.roads.find(r=>r.id===id);
+const freeOf=id=>(S.current[id]&&S.current[id].free_flow)||road(id).free_flow;
+const curOf=id=>S.current[id]?S.current[id].speed:null;
+const fcOf=(id,h)=>S.forecast[id]?S.forecast[id][h]:null;
+
+function computeAlerts(){ // used when the source doesn't send alerts (demo)
+  const out=[];S.roads.forEach(r=>{let worst=-1,at=0;HORIZONS.forEach(h=>{const p=fcOf(r.id,h);if(p==null)return;const l=lvOf(p,freeOf(r.id));if(l>worst){worst=l;at=h}});if(worst>=1)out.push({id:r.id,level:worst,horizon:at,at:(S.forecastMadeAt||Date.now())+at*6e4})});
+  out.sort((a,b)=>b.level-a.level||a.horizon-b.horizon);return out.slice(0,5).sort((a,b)=>a.horizon-b.horizon)}
+
+/* ============================================================
+   Map: schematic SVG (always works) or Leaflet + OSM tiles (live mode)
+   ============================================================ */
+const BOX={latMax:17.53,latMin:17.22,lngMin:78.315,lngMax:78.63};
+const MW=Math.round((BOX.lngMax-BOX.lngMin)*Math.cos(17.38*Math.PI/180)*1900),MH=Math.round((BOX.latMax-BOX.latMin)*1900);
+const P=([lat,lng])=>[((lng-BOX.lngMin)/(BOX.lngMax-BOX.lngMin)*MW).toFixed(1),((BOX.latMax-lat)/(BOX.latMax-BOX.latMin)*MH).toFixed(1)];
+const pts=g=>g.map(p=>P(p).join(",")).join(" ");
+const PLACES=[["Miyapur","మియాపూర్",17.503,78.345],["Kukatpally","కూకట్‌పల్లి",17.492,78.418],["Hitech City","హైటెక్ సిటీ",17.462,78.322],["Gachibowli","గచ్చిబౌలి",17.43,78.332],
+ ["Begumpet","బేగంపేట్",17.457,78.422],["Secunderabad","సికింద్రాబాద్",17.452,78.5],["Uppal","ఉప్పల్",17.399,78.566],["Mehdipatnam","మెహిదీపట్నం",17.389,78.4],
+ ["Charminar","చార్మినార్",17.355,78.48],["LB Nagar","ఎల్‌బీ నగర్",17.337,78.556],["Rajendranagar","రాజేంద్రనగర్",17.318,78.395],["Shamshabad","శంషాబాద్",17.258,78.45]];
+const CONTEXT=[[[17.4436,78.486],[17.4399,78.4983]],[[17.4375,78.4483],[17.4262,78.4508],[17.411,78.461],[17.4095,78.476]],[[17.4095,78.476],[17.385,78.483],[17.376,78.476]],
+ [[17.3688,78.5247],[17.375,78.5],[17.385,78.483]],[[17.4435,78.3772],[17.4401,78.3489]],[[17.4399,78.4983],[17.47,78.495],[17.53,78.49]],[[17.361,78.474],[17.33,78.455],[17.28,78.44],[17.22,78.43]],
+ [[17.3457,78.5522],[17.33,78.59],[17.31,78.63]],[[17.4058,78.5591],[17.415,78.6],[17.42,78.63]],[[17.395,78.438],[17.37,78.43],[17.345,78.425]],[[17.4968,78.3614],[17.51,78.33]],
+ [[17.4849,78.4138],[17.4945,78.38]],[[17.4015,78.4515],[17.4095,78.476]],[[17.4435,78.3772],[17.439,78.396]],[[17.429,78.416],[17.4262,78.4508]]];
+const MUSI=[[17.382,78.315],[17.374,78.37],[17.369,78.42],[17.37,78.46],[17.373,78.49],[17.362,78.53],[17.37,78.58],[17.382,78.63]];
+
+const maps={};
+function orrPath(){const c=[17.385,78.475],pts=[];for(let k=0;k<=64;k++){const a=k/64*2*Math.PI;pts.push(P([c[0]+.148*Math.sin(a),c[1]+.137*Math.cos(a)]).join(","))}return pts.join(" ")}
+function buildSchematic(el){
+  const [hx,hy]=P([17.4239,78.4738]),[ix,iy]=P([17.32,78.383]);
+  el.innerHTML=`<svg viewBox="0 0 ${MW} ${MH}" role="img" aria-label="Map of monitored Hyderabad road corridors coloured by congestion">
+    <rect width="${MW}" height="${MH}" fill="var(--map-land)"/>
+    <polyline points="${pts(MUSI)}" fill="none" stroke="var(--map-water)" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
+    <ellipse cx="${hx}" cy="${hy}" rx="24" ry="22" fill="var(--map-water)"/>
+    <ellipse cx="${ix}" cy="${iy}" rx="36" ry="20" fill="var(--map-water)"/>
+    <polyline points="${orrPath()}" fill="none" stroke="var(--map-ring)" stroke-width="6"/>
+    ${CONTEXT.map(g=>`<polyline points="${pts(g)}" fill="none" stroke="var(--map-road)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`).join("")}
+    <g data-roads></g>
+    ${PLACES.map(p=>{const[x,y]=P([p[2],p[3]]);return `<text class="lbl" x="${x}" y="${y}">${p[0]}</text><text class="lbl-te" x="${x}" y="${+y+13}">${p[1]}</text>`}).join("")}
+    <text class="lbl lbl-big" x="${P([17.405,78.49])[0]}" y="${P([17.405,78.49])[1]}" text-anchor="middle">Hyderabad</text>
+    <text class="lbl-te" x="${P([17.405,78.49])[0]}" y="${+P([17.405,78.49])[1]+16}" text-anchor="middle" style="font-size:12px">హైదరాబాద్</text>
+    <text x="${MW-8}" y="${MH-8}" text-anchor="end" style="font-size:10px;fill:var(--muted)">Outer Ring Road shown as grey ring · approximate</text>
+  </svg>${mapChrome()}`;
+  const svg=el.querySelector("svg"),vb={x:0,y:0,w:MW,h:MH,z:1};
+  const setVB=()=>svg.setAttribute("viewBox",`${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
+  const zoom=(f,cx=vb.x+vb.w/2,cy=vb.y+vb.h/2)=>{const z=Math.max(1,Math.min(4,vb.z*f));const w=MW/z,h=MH/z;vb.x=Math.max(0,Math.min(MW-w,cx-(cx-vb.x)*(w/vb.w)));vb.y=Math.max(0,Math.min(MH-h,cy-(cy-vb.y)*(h/vb.h)));vb.w=w;vb.h=h;vb.z=z;setVB()};
+  el.querySelector("[data-z='in']").onclick=()=>zoom(1.5);
+  el.querySelector("[data-z='out']").onclick=()=>zoom(1/1.5);
+  el.querySelector("[data-z='reset']").onclick=()=>{Object.assign(vb,{x:0,y:0,w:MW,h:MH,z:1});setVB()};
+  let drag=null; // pan with pointer
+  svg.addEventListener("pointerdown",e=>{if(vb.z===1||e.target.closest(".road-hit"))return;drag={x:e.clientX,y:e.clientY,vx:vb.x,vy:vb.y};svg.setPointerCapture(e.pointerId)});
+  svg.addEventListener("pointermove",e=>{if(!drag)return;const k=vb.w/svg.clientWidth;vb.x=Math.max(0,Math.min(MW-vb.w,drag.vx-(e.clientX-drag.x)*k));vb.y=Math.max(0,Math.min(MH-vb.h,drag.vy-(e.clientY-drag.y)*k));setVB()});
+  svg.addEventListener("pointerup",()=>drag=null);
+  return {kind:"svg",draw(){drawSchematicRoads(el)}};
+}
+function mapChrome(){return `<div class="zoom"><button data-z="in" aria-label="Zoom in">+</button><button data-z="out" aria-label="Zoom out">−</button><button data-z="reset" aria-label="Reset view"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M4 4h6M4 4v6M20 20h-6M20 20v-6M20 4h-6M20 4v6M4 20h6M4 20v-6"/></svg></button></div>
+  <div class="legend" aria-hidden="true"><b>Traffic Level</b>${LV.map((l,i)=>`<span><i style="background:${LINE[i]}"></i>${l}</span>`).join("")}</div>`}
+const tip=$("#maptip");
+function showTip(e,id){const c=curOf(id);tip.hidden=false;tip.textContent=`${road(id).name} · ${c==null?"no data":Math.round(c)+" km/h · "+LV[lvOf(c,freeOf(id))]}`;tip.style.left=e.clientX+"px";tip.style.top=e.clientY+"px"}
+function drawSchematicRoads(el){
+  const g=el.querySelector("[data-roads]");if(!g||!S)return;
+  g.innerHTML=S.roads.map(r=>{const c=curOf(r.id),l=c==null?null:lvOf(c,freeOf(r.id)),p=pts(r.geometry);
+    return `${UI.sel===r.id?`<polyline class="road-sel" points="${p}" stroke-width="16"/>`:""}<polyline class="road-halo" points="${p}" stroke-width="9"/><polyline class="road" points="${p}" stroke="${l==null?"var(--faint)":LINE[l]}" stroke-width="5.5"/><polyline class="road-hit" data-i="${r.id}" points="${p}" tabindex="0" role="button" aria-label="${esc(r.name)}: ${l==null?"no data":LV[l]}"/>`}).join("");
+  g.querySelectorAll(".road-hit").forEach(h=>{const id=+h.dataset.i;
+    h.onpointermove=e=>showTip(e,id);h.onpointerleave=()=>tip.hidden=true;
+    h.onclick=()=>{tip.hidden=true;openDrawer(id)};h.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();openDrawer(id)}}});
+}
+function buildLeaflet(el){
+  el.innerHTML=`<div class="lf" style="position:absolute;inset:0"></div><div class="legend" aria-hidden="true"><b>Traffic Level</b>${LV.map((l,i)=>`<span><i style="background:${LINE[i]}"></i>${l}</span>`).join("")}</div>`;
+  const m=L.map(el.querySelector(".lf"),{zoomControl:true,attributionControl:true}).setView([17.405,78.46],11);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:18,attribution:"&copy; OpenStreetMap contributors"}).addTo(m);
+  const lines={};
+  return {kind:"leaflet",map:m,draw(){if(!S)return;S.roads.forEach(r=>{const c=curOf(r.id),l=c==null?null:lvOf(c,freeOf(r.id)),col=getComputedStyle(document.documentElement).getPropertyValue(["--low-line","--mod-line","--high-line","--jam-line"][l??0]).trim();
+      if(!lines[r.id]){lines[r.id]=L.polyline(r.geometry,{weight:6,opacity:.95}).addTo(m);lines[r.id].on("click",()=>openDrawer(r.id))}
+      lines[r.id].setStyle({color:l==null?"#8a94ad":col,weight:UI.sel===r.id?9:6});
+      lines[r.id].bindTooltip(`${esc(r.name)} · ${c==null?"no data":Math.round(c)+" km/h · "+LV[l]}`,{sticky:true})})},
+    resize(){m.invalidateSize()}};
+}
+function loadLeaflet(){return new Promise((ok,no)=>{if(window.L)return ok();
+  const css=document.createElement("link");css.rel="stylesheet";css.href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css";document.head.appendChild(css);
+  const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js";s.onload=ok;s.onerror=no;document.head.appendChild(s)})}
+async function setupMaps(useLeaflet){
+  let lf=false;if(useLeaflet){try{await loadLeaflet();lf=true}catch(e){lf=false}}
+  $$("[data-map]").forEach(el=>{maps[el.dataset.map]=lf?buildLeaflet(el):buildSchematic(el)});
+}
+
+/* ============================================================
+   Sparklines & tables
+   ============================================================ */
+function spark(id,h,lv){
+  const now=S.generatedAt,hist=(S.history[id]||[]).filter(p=>p[0]>=now-3600e3),c=curOf(id);
+  const fut=[[S.lastReadingAt||now,c],...HORIZONS.filter(x=>x<=h).map(x=>[(S.forecastMadeAt||now)+x*6e4,fcOf(id,x)])].filter(p=>p[1]!=null);
+  const all=hist.concat(fut);if(all.length<2)return `<span class="hint">–</span>`;
+  const t0=now-3600e3,t1=now+h*6e4,v=all.map(p=>p[1]),mn=Math.min(...v)-2,mx=Math.max(...v)+2,W=104,H=30;
+  const X=t=>((t-t0)/(t1-t0))*W,Y=s=>H-3-((s-mn)/(mx-mn||1))*(H-6);
+  const pp=hist.map(p=>`${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`),fp=fut.map(p=>`${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`);
+  const last=fut[fut.length-1],col=LINE[lv];
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true"><line x1="${X(now)}" x2="${X(now)}" y1="0" y2="${H}" stroke="var(--line-strong)" stroke-dasharray="2 2"/>${pp.length>1?`<polygon points="${pp[0].split(",")[0]},${H} ${pp.join(" ")} ${pp[pp.length-1].split(",")[0]},${H}" fill="${col}" opacity=".13"/><polyline points="${pp.join(" ")}" fill="none" stroke="${col}" stroke-width="1.6"/>`:""}<polyline points="${fp.join(" ")}" fill="none" stroke="${col}" stroke-width="1.8" stroke-dasharray="3 2"/><circle cx="${X(last[0])}" cy="${Y(last[1])}" r="3" fill="${col}" stroke="var(--surface)" stroke-width="1.5"/></svg>`}
+function predRow(r,small){
+  const c=curOf(r.id),p=fcOf(r.id,UI.horizon),ff=freeOf(r.id);
+  if(c==null)return `<tr data-i="${r.id}" tabindex="0"><td class="road-n">${esc(r.name)}${small?"":`<small>${esc(r.sub)}</small>`}</td><td colspan="4" class="hint">No reading yet</td></tr>`;
+  const lc=lvOf(c,ff),lp=p==null?lc:lvOf(p,ff),d=p==null?0:Math.round(p-c);
+  return `<tr data-i="${r.id}" tabindex="0" class="${UI.sel===r.id?"sel":""}"><td class="road-n">${esc(r.name)}${small?"":`<small>${esc(r.sub)}</small>`}</td><td><span class="pill p-${lc}">${LV[lc]}</span></td><td class="num r">${Math.round(c)}</td><td class="num r t-${lp}"><b>${p==null?"–":Math.round(p)}</b>${p==null?"":`<span class="delta">${d>0?"▲":d<0?"▼":"■"}${Math.abs(d)}</span>`}</td><td>${spark(r.id,UI.horizon,lp)}</td></tr>`}
+function severity(r){const c=curOf(r.id),p=fcOf(r.id,UI.horizon)??c;return c==null?-1:(p/freeOf(r.id))}
+function drawTables(){
+  const dash=[...S.roads].sort((a,b)=>severity(a)-severity(b)).filter(r=>curOf(r.id)!=null).slice(0,6);
+  $("[data-tbl='dash']").innerHTML=dash.map(r=>predRow(r,true)).join("")||`<tr class="empty-row"><td colspan="5">Waiting for the first readings…</td></tr>`;
+  const q=UI.search.trim().toLowerCase();
+  let all=S.roads.filter(r=>!q||(r.name+" "+r.sub+" "+r.short).toLowerCase().includes(q));
+  if(UI.sort==="worst")all.sort((a,b)=>severity(a)-severity(b));
+  else if(UI.sort==="drop")all.sort((a,b)=>((fcOf(a.id,UI.horizon)??0)-(curOf(a.id)??0))/freeOf(a.id)-((fcOf(b.id,UI.horizon)??0)-(curOf(b.id)??0))/freeOf(b.id));
+  else all.sort((a,b)=>a.name.localeCompare(b.name));
+  $("[data-tbl='all']").innerHTML=all.map(r=>predRow(r,false)).join("")||`<tr class="empty-row"><td colspan="5">No roads match “${esc(UI.search)}”. Try an area name such as Gachibowli.</td></tr>`;
+  $("#nowTbl").innerHTML=S.roads.map(r=>{const c=curOf(r.id);if(c==null)return `<tr data-i="${r.id}" tabindex="0"><td class="road-n">${esc(r.name)}</td><td colspan="3" class="hint">No reading yet</td></tr>`;
+    const l=lvOf(c,freeOf(r.id)),delay=r.length_km?(r.length_km/c-r.length_km/freeOf(r.id))*60:0;
+    return `<tr data-i="${r.id}" tabindex="0" class="${UI.sel===r.id?"sel":""}"><td class="road-n">${esc(r.name)}<small>${r.length_km} km</small></td><td><span class="pill p-${l}">${LV[l]}</span></td><td class="num r">${Math.round(c)}</td><td class="num r">${delay<.5?"–":"+"+Math.round(delay)+" min"}</td></tr>`}).join("");
+  $$("tbody tr[data-i]").forEach(tr=>{tr.onclick=()=>openDrawer(+tr.dataset.i);tr.onkeydown=e=>{if(e.key==="Enter"){openDrawer(+tr.dataset.i)}}});
+}
+
+/* ============================================================
+   Line chart with crosshair tooltip (trend + drawer)
+   ============================================================ */
+function lineChart(box,{series,t0,t1,height=210,yMax,marks=[],tickEvery=3600e3,tickFmt}){
+  const W=Math.max(320,Math.round(box.clientWidth-24||680)),H=height,L=40,R=series.some(s=>s.label)?96:16,T=24,B=26;
+  const vals=series.flatMap(s=>s.pts.map(p=>p[1])).filter(v=>v!=null);
+  const top=yMax||Math.max(20,Math.ceil((Math.max(...vals,0)+5)/20)*20);
+  const X=t=>L+(t-t0)/(t1-t0)*(W-L-R),Y=v=>T+(1-v/top)*(H-T-B);
+  const step=top<=40?10:top<=80?20:25;
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(box.dataset.label||"Speed chart")}"><g class="axis">`;
+  for(let v=0;v<=top;v+=step)s+=`<line class="${v===0?"base":"gridl"}" x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${L-8}" y="${Y(v)+4}" text-anchor="end">${v}</text>`;
+  if((t1-t0)/tickEvery>(W-L-R)/60)tickEvery*=2;
+  const first=Math.ceil(t0/tickEvery)*tickEvery;
+  for(let t=first-(IST*1000%tickEvery);t<=t1;t+=tickEvery){if(t<t0)continue;s+=`<text x="${X(t)}" y="${H-7}" text-anchor="middle">${tickFmt(t)}</text>`}
+  s+=`<text x="${L-30}" y="${T-10}" style="font-family:var(--f-ui)">km/h</text></g>`;
+  marks.forEach(m=>{s+=`<line x1="${X(m.t)}" x2="${X(m.t)}" y1="${T}" y2="${H-B}" stroke="var(--line-strong)" stroke-dasharray="3 3"/><text x="${X(m.t)+4}" y="${T+10}" style="font-size:10.5px;fill:var(--muted)">${m.label}</text>`});
+  const ends=[];
+  series.forEach(se=>{const p=se.pts.filter(x=>x[1]!=null&&x[0]>=t0&&x[0]<=t1);if(!p.length)return;
+    s+=`<polyline points="${p.map(x=>X(x[0]).toFixed(1)+","+Y(x[1]).toFixed(1)).join(" ")}" fill="none" stroke="${se.color}" stroke-width="${se.width||2}" ${se.dash?`stroke-dasharray="${se.dash}"`:""} stroke-linejoin="round" stroke-linecap="round"/>`;
+    if(se.dots)p.forEach(x=>{s+=`<circle cx="${X(x[0])}" cy="${Y(x[1])}" r="4" fill="${se.color}" stroke="var(--surface)" stroke-width="2"/>`});
+    const e=p[p.length-1];if(se.end!==false)s+=`<circle cx="${X(e[0])}" cy="${Y(e[1])}" r="4" fill="${se.color}" stroke="var(--surface)" stroke-width="2"/>`;
+    if(se.label)ends.push({y:Y(e[1]),x:X(e[0]),label:se.label})});
+  ends.sort((a,b)=>a.y-b.y);for(let i=1;i<ends.length;i++)if(ends[i].y-ends[i-1].y<13)ends[i].y=ends[i-1].y+13;
+  ends.forEach(e=>{s+=`<text x="${W-R+8}" y="${e.y+4}" style="font-size:11.5px;font-weight:600;fill:var(--fg)">${esc(e.label)}</text>`});
+  s+=`<line class="cross cx" x1="0" x2="0" y1="${T}" y2="${H-B}" visibility="hidden"/><g class="cdots"></g><rect x="${L}" y="${T}" width="${W-L-R}" height="${H-T-B}" fill="transparent" class="hit"/></svg><div class="ctip" hidden></div>`;
+  box.innerHTML=s;
+  const svg=box.querySelector("svg"),hit=box.querySelector(".hit"),cx=box.querySelector(".cx"),dots=box.querySelector(".cdots"),tp=box.querySelector(".ctip");
+  const move=e=>{const r=svg.getBoundingClientRect(),k=W/r.width,x=(e.clientX-r.left)*k,t=t0+(x-L)/(W-L-R)*(t1-t0);
+    const rows=series.filter(se=>se.tip!==false).map(se=>{let best=null;se.pts.forEach(p=>{if(p[1]==null)return;if(!best||Math.abs(p[0]-t)<Math.abs(best[0]-t))best=p});return best&&Math.abs(best[0]-t)<(t1-t0)/12?{se,p:best}:null}).filter(Boolean);
+    if(!rows.length){cx.setAttribute("visibility","hidden");tp.hidden=true;dots.innerHTML="";return}
+    const tt=rows[0].p[0];cx.setAttribute("x1",X(tt));cx.setAttribute("x2",X(tt));cx.setAttribute("visibility","visible");
+    dots.innerHTML=rows.map(o=>`<circle cx="${X(o.p[0])}" cy="${Y(o.p[1])}" r="5" fill="${o.se.color}" stroke="var(--surface)" stroke-width="2"/>`).join("");
+    tp.innerHTML=`<b>${fmtT(tt)}</b>`+rows.map(o=>`<div><span><i style="background:${o.se.color}"></i>${esc(o.se.name)}</span><strong class="num">${Math.round(o.p[1])} km/h</strong></div>`).join("");
+    tp.hidden=false;const bx=box.getBoundingClientRect(),px=(X(tt)/k)+(r.left-bx.left);tp.style.top="8px";tp.style.left=(px>bx.width/2?px-tp.offsetWidth-12:px+12)+"px"};
+  hit.addEventListener("pointermove",move);hit.addEventListener("pointerdown",move);
+  hit.addEventListener("pointerleave",()=>{cx.setAttribute("visibility","hidden");tp.hidden=true;dots.innerHTML=""});
+}
+function trendRoads(key){
+  if(!UI.trend[key]){const d=[...S.roads].sort((a,b)=>severity(a)-severity(b)).slice(0,4).map(r=>r.id);UI.trend[key]=d.map((id,i)=>({id,slot:i}))}
+  return UI.trend[key]}
+function drawTrend(key){
+  const box=$(`[data-chart='${key}']`),lg=$(`[data-legend='${key}']`),sel=trendRoads(key);
+  const candidates=key==="dash"?sel.map(x=>x.id):S.roads.map(r=>r.id);
+  lg.innerHTML=candidates.map(id=>{const s=sel.find(x=>x.id===id);return `<button class="tg" data-i="${id}" aria-pressed="${!!s}"><i style="${s?`background:${SERIES[s.slot]};border-color:${SERIES[s.slot]}`:""}"></i>${esc(road(id).short)}</button>`}).join("");
+  lg.querySelectorAll(".tg").forEach(b=>b.onclick=()=>{const id=+b.dataset.i,cur=UI.trend[key],i=cur.findIndex(x=>x.id===id);
+    if(i>=0){if(cur.length>1)cur.splice(i,1)}else{if(cur.length>=4)return flashNote(b,"Remove a road first (max 4)");const used=cur.map(x=>x.slot);cur.push({id,slot:[0,1,2,3].find(s=>!used.includes(s))})}
+    drawTrend(key)});
+  box.dataset.label="Speed over the last six hours for selected roads";
+  const now=S.generatedAt;
+  lineChart(box,{t0:now-6*3600e3,t1:now,height:key==="dash"?210:260,tickFmt:t=>hourLbl(Math.round(((t/1000+IST)/3600)%24)),
+    series:sel.map(x=>({name:road(x.id).short,label:road(x.id).short,color:SERIES[x.slot],pts:(S.history[x.id]||[])}))});
+}
+function flashNote(el,msg){el.title=msg;el.animate?.([{transform:"translateX(-3px)"},{transform:"translateX(3px)"},{transform:"none"}],{duration:200})}
+
+/* ============================================================
+   Hourly profile bars
+   ============================================================ */
+function drawHourly(){
+  const box=$("#hourChart"),W=Math.max(320,Math.round(box.clientWidth-24||560)),H=210,L=40,R=10,T=12,B=26,bw=(W-L-R)/24,Y=v=>T+(1-v/100)*(H-T-B);
+  const nowH=Math.floor(((S.generatedAt/1000+IST)/3600)%24),prof=S.profile||[];
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Share of corridors congested by hour of day"><g class="axis">`;
+  [0,25,50,75,100].forEach(v=>{s+=`<line class="${v?"gridl":"base"}" x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${L-8}" y="${Y(v)+4}" text-anchor="end">${v}%</text>`});
+  for(let h=0;h<24;h+=3)s+=`<text x="${L+h*bw+bw/2}" y="${H-7}" text-anchor="middle">${String(h).padStart(2,"0")}</text>`;
+  s+="</g>";
+  prof.forEach((v,h)=>{if(v==null)return;const y=Math.min(Y(v),Y(0)-2);s+=`<path d="M${L+h*bw+1},${Y(0)} V${y+3} q0,-3 3,-3 h${bw-8} q3,0 3,3 V${Y(0)}Z" fill="${h===nowH?"var(--s1)":"var(--high-line)"}" opacity="${h===nowH?1:.7}"/><rect class="hb" data-h="${h}" x="${L+h*bw}" y="${T}" width="${bw}" height="${H-T-B}" fill="transparent"/>`});
+  box.innerHTML=s+`</svg><div class="ctip" hidden></div><p class="hint" style="margin:6px 4px 0">Blue bar = current hour. Based on the last 7 days of readings.</p>`;
+  const tp=box.querySelector(".ctip");
+  box.querySelectorAll(".hb").forEach(b=>{b.onpointerenter=b.onpointerdown=e=>{const h=+b.dataset.h;tp.innerHTML=`<b>${String(h).padStart(2,"0")}:00 – ${String((h+1)%24).padStart(2,"0")}:00</b><div><span>Congested share</span><strong class="num">${Math.round(prof[h])}%</strong></div>`;tp.hidden=false;const bx=box.getBoundingClientRect(),r=b.getBoundingClientRect();let x=r.left-bx.left+r.width+6;if(x+170>bx.width)x=r.left-bx.left-176;tp.style.left=x+"px";tp.style.top="10px"};b.onpointerleave=()=>tp.hidden=true});
+}
+
+/* ============================================================
+   KPIs, alerts, status, model panel
+   ============================================================ */
+function drawKPIs(){
+  const st=S.stats,speeds=S.roads.map(r=>curOf(r.id)).filter(v=>v!=null);
+  $("#kRoads").textContent=S.roads.length;$("#kOf").textContent=S.roads.length;
+  $("#kSpeed").textContent=st.avg==null?"–":Math.round(st.avg);
+  if(st.avg!=null&&st.prev){const d=(st.avg-st.prev)/st.prev*100;$("#kSpeedD").innerHTML=`<span class="${d>=0?"up":"down"}">${d>=0?"↑":"↓"} ${Math.abs(d).toFixed(0)}%</span> vs. an hour ago`}else $("#kSpeedD").textContent="Needs an hour of readings";
+  $("#kCong").textContent=S.roads.filter(r=>{const c=curOf(r.id);return c!=null&&lvOf(c,freeOf(r.id))>=2}).length;
+  if(st.accuracy==null){$("#kAcc").textContent="–";$("#kAccU").textContent="";$("#kAccD").textContent="Scored once forecasts come due"}
+  else{$("#kAcc").textContent=st.accuracy.toFixed(1);$("#kAccU").textContent="%";$("#kAccD").textContent=`1 − MAPE · ${st.accuracyN.toLocaleString("en-IN")} forecasts, 24 h`}
+}
+function alertsList(){return S.alerts||computeAlerts()}
+function drawAlerts(){
+  const a=alertsList();
+  $("#clist").innerHTML=a.length?a.map(o=>`<li><button data-i="${o.id}"><span class="num">${fmtT(o.at)}</span><span>${esc(road(o.id).name)}<small>in ${o.horizon} min · predicted ${Math.round(fcOf(o.id,o.horizon)??0)} km/h</small></span><span class="pill p-${o.level}">${LV[o.level]}</span></button></li>`).join(""):`<li class="none">No slowdowns forecast for the next hour.</li>`;
+  $$("#clist button").forEach(b=>b.onclick=()=>openDrawer(+b.dataset.i));
+  const serious=a.filter(o=>o.level>=2);$("#bellN").hidden=!serious.length;$("#bellN").textContent=serious.length;
+  $("#alertPopList").innerHTML=a.length?a.map(o=>`<button class="alert" data-i="${o.id}"><span><b>${esc(road(o.id).name)}</b></span><span class="pill p-${o.level}">${LV[o.level]}</span><small>${fmtT(o.at)} · in ${o.horizon} min</small></button>`).join(""):`<p class="empty">Nothing to report. All corridors are forecast to flow for the next hour.</p>`;
+  $$("#alertPopList button").forEach(b=>b.onclick=()=>{togglePop(false);openDrawer(+b.dataset.i)});
+}
+function drawStatus(){
+  const chip=$("#modeChip"),dot=$("#statusDot");
+  if(S.mode==="demo"){chip.className="chip mode-demo";chip.textContent="Demo data";chip.title="No backend connected. Speeds and forecasts are simulated in the browser.";$("#statusTxt").textContent="Demo mode";dot.className="dot warn";$("#statusNote").textContent="Simulated in the browser. Connect the backend in Settings."}
+  else{const tt=S.source==="tomtom";chip.className="chip "+(tt?"mode-live":"mode-sim");chip.textContent=tt?"Live · TomTom":"Live · simulator";chip.title=tt?"Speeds come from the TomTom Traffic Flow API":"Backend connected, but no TomTom key is set, so it simulates speeds";
+    const stale=S.lastReadingAt&&Date.now()-S.lastReadingAt>2.5*(S.health?.interval_sec||1800)*1000;
+    $("#statusTxt").textContent=UI.failures?"Connection lost":stale?"Readings delayed":"System online";dot.className="dot"+(UI.failures?" bad":stale?" warn":"");
+    $("#statusNote").textContent=S.nextAt?`Next reading ≈ ${fmtT(S.nextAt)}`:""}
+  $("#lastUpd").textContent=S.lastReadingAt?fmtT(S.lastReadingAt):"–";
+  const w=S.weather;if(w){$("#wxChip").hidden=false;$("#wxChip").textContent=`${Math.round(w.temp_c)}°C · ${w.description}${w.rain_1h>0?` · ${w.rain_1h} mm rain`:""}`}else $("#wxChip").hidden=true;
+  const mdl=S.model==="st-laddernet"?"ST-LadderNet":S.model==="baseline"?"Baseline (historical average)":S.model==="demo"?"Simulated":"No forecasts yet";
+  $("#modelNote").textContent=`Forecasts: ${mdl}`;
+  $("#foot").textContent=S.mode==="demo"?"Demo mode · speeds and forecasts are simulated in your browser.":`Connected to ${Live.base||location.origin} · data from ${S.source==="tomtom"?"TomTom Traffic Flow":"the backend simulator"} · forecasts by ${mdl}`;
+  $("#perfInfo").innerHTML=`<dt>Forecast model</dt><dd>${mdl}</dd><dt>Accuracy (1 − MAPE)</dt><dd>${S.stats.accuracy==null?"Not scored yet":S.stats.accuracy.toFixed(1)+"%"}</dd><dt>Forecasts scored</dt><dd>${(S.stats.accuracyN||0).toLocaleString("en-IN")} in the last 24 h</dd><dt>Horizons</dt><dd>15, 30, 45 and 60 minutes</dd><dt>Data source</dt><dd>${S.mode==="demo"?"Browser simulation":S.source==="tomtom"?"TomTom Traffic Flow API":"Backend simulator"}</dd>${S.model==="baseline"?`<dt>Next step</dt><dd>Collect a few weeks of real readings, then run <code>python -m ml.train</code></dd>`:""}`;
+  $("#connInfo").innerHTML=`<dt>Mode</dt><dd>${S.mode==="demo"?"Demo (no backend)":"Live"}</dd><dt>Server</dt><dd>${S.mode==="demo"?"–":esc(Live.base||location.origin)}</dd><dt>Database</dt><dd>${S.health?.database||"–"}</dd><dt>Readings stored</dt><dd>${S.health?.readings?.toLocaleString("en-IN")??"–"}</dd><dt>Collection interval</dt><dd>${S.health?.interval_sec?Math.round(S.health.interval_sec/60)+" min":"–"}</dd>`;
+}
+function drawLadder(){
+  const grid=k=>{let s=`<svg width="42" height="42" viewBox="0 0 42 42" aria-hidden="true">`;for(let y=0;y<7;y++)for(let x=0;x<7;x++){const o=(7-k)/2,on=x>=o&&x<o+k&&y>=o&&y<o+k,c=x===3&&y===3;s+=`<rect x="${x*6}" y="${y*6}" width="5" height="5" rx="1" fill="${c||on?"var(--accent)":"var(--line-strong)"}" opacity="${c?1:on?.45:.6}"/>`}return s+"</svg>"};
+  $("#ladderPanel").innerHTML=`<div class="rungs"><figure>${grid(3)}<figcaption>0–20 min ago</figcaption></figure><figure>${grid(5)}<figcaption>20–40 min</figcaption></figure><figure>${grid(7)}<figcaption>40–60 min</figcaption></figure></div>
+   <p><b>How ST-LadderNet reads the city.</b> Each block is ~2 km of Hyderabad. For the newest readings the ladder CNN looks only at the 3×3 blocks around a road, which filters out unrelated noise. Older readings climb the ladder to 5×5 and 7×7, because congestion takes time to spread from further away. A GRU then combines the steps to forecast 15–60 minutes ahead.</p>`}
+
+/* ============================================================
+   Road detail drawer
+   ============================================================ */
+let lastFocus=null,drawerId=null;
+async function openDrawer(id){
+  UI.sel=id;drawerId=id;lastFocus=document.activeElement;
+  $("#scrim").hidden=false;$("#drawer").hidden=false;renderDrawer(null);$("#dClose").focus();
+  redrawSelection();
+  try{const d=await SRC.detail(id);if(drawerId===id)renderDrawer(d)}catch(e){if(drawerId===id)renderDrawer({error:e.message})}
+}
+function closeDrawer(){$("#scrim").hidden=true;$("#drawer").hidden=true;drawerId=null;UI.sel=null;redrawSelection();lastFocus?.focus?.()}
+function renderDrawer(d){
+  const r=road(drawerId);if(!r)return;const c=curOf(r.id),ff=freeOf(r.id);
+  $("#dTitle").textContent=r.name;$("#dSub").textContent=`${r.sub} · ${r.length_km} km`;
+  if(c==null){$("#dBody").innerHTML=`<p class="hint">No reading for this road yet.</p>`;return}
+  const l=lvOf(c,ff),tNow=r.length_km/c*60,tFree=r.length_km/ff*60;
+  const fcs=HORIZONS.map(h=>({h,v:fcOf(r.id,h)})).filter(x=>x.v!=null);
+  const best=fcs.reduce((a,b)=>b.v>a.v?b:a,{h:0,v:c});
+  const advice=best.h>0&&best.v>c*1.1?`Traffic here should ease. Setting off in <b>${best.h} minutes</b> (around ${fmtT(Date.now()+best.h*6e4)}) is forecast at ${Math.round(best.v)} km/h, saving about ${Math.max(1,Math.round(tNow-r.length_km/best.v*60))} min on this stretch.`
+    :fcs.length&&fcs[fcs.length-1].v<c*.9?`It is forecast to get <b>slower</b> over the next hour. If you can, travel now.`:`Conditions should stay about the same for the next hour.`;
+  let html=`<div class="big"><span class="n t-${l}">${Math.round(c)}</span><span>km/h now</span><span class="pill p-${l}">${LV[l]}</span></div>
+   <dl class="facts"><div><dt>Free-flow speed</dt><dd>${Math.round(ff)} km/h</dd></div><div><dt>Travel time now</dt><dd>${tNow.toFixed(1)} min</dd></div><div><dt>Delay</dt><dd>${tNow-tFree<.5?"None":"+"+(tNow-tFree).toFixed(1)+" min"}</dd></div></dl>
+   <div><h3>Forecast</h3><div class="hz">${fcs.map(x=>{const lx=lvOf(x.v,ff);return `<div><small><b style="font-size:12px;color:var(--fg)">+${x.h} min</b><br>${fmtT((S.forecastMadeAt||Date.now())+x.h*6e4)}</small><b class="t-${lx}">${Math.round(x.v)} <small>km/h</small></b><span class="pill p-${lx}">${LV[lx]}</span></div>`}).join("")||`<p class="hint">No forecast yet.</p>`}</div></div>
+   <div class="advice">${advice}</div>
+   <div><h3>Last 24 hours and next hour</h3><div class="chart" id="dChart" style="padding:0">${d?"":`<p class="hint">Loading history…</p>`}</div>
+   <div class="keys"><span><i style="border-color:var(--s1)"></i>Measured</span><span><i style="border-color:var(--faint);border-top-style:dashed"></i>Typical for this time</span><span><i style="border-color:var(--s2);border-top-style:dashed"></i>Forecast</span></div></div>`;
+  if(d&&d.error)html+=`<p class="bad">Couldn't load history: ${esc(d.error)}</p>`;
+  $("#dBody").innerHTML=html;
+  if(d&&!d.error){
+    const now=Date.now(),t0=now-24*3600e3,t1=now+3600e3,day0=Math.floor((now/1000+IST)/86400)*86400-IST;
+    const typ=[];for(let t=Math.ceil(t0/1800e3)*1800e3;t<=t1;t+=1800e3){const k=Math.floor(((t/1000+IST)%86400)/1800);typ.push([t,d.typical?.[k]??null])}
+    lineChart($("#dChart"),{t0,t1,height:220,tickEvery:6*3600e3,tickFmt:t=>hourLbl(Math.round(((t/1000+IST)/3600)%24)),marks:[{t:now,label:"Now"}],
+      series:[{name:"Typical",color:"var(--faint)",dash:"4 4",width:1.5,pts:typ,end:false},{name:"Measured",color:"var(--s1)",pts:d.history},
+        {name:"Forecast",color:"var(--s2)",dash:"5 3",dots:true,end:false,pts:[[S.lastReadingAt||now,c],...fcs.map(x=>[(S.forecastMadeAt||now)+x.h*6e4,x.v])]}]});
+  }
+}
+$("#dClose").onclick=closeDrawer;$("#scrim").onclick=closeDrawer;
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){if(!$("#drawer").hidden)closeDrawer();togglePop(false)}
+  if(e.key==="Tab"&&!$("#drawer").hidden){const f=[...$("#drawer").querySelectorAll("button,[tabindex='0']")];if(!f.length)return;if(e.shiftKey&&document.activeElement===f[0]){e.preventDefault();f[f.length-1].focus()}else if(!e.shiftKey&&document.activeElement===f[f.length-1]){e.preventDefault();f[0].focus()}}});
+function redrawSelection(){if(!S)return;Object.values(maps).forEach(m=>m.draw());drawTables()}
+
+/* ============================================================
+   Views, controls, refresh loop
+   ============================================================ */
+const TITLES={dash:["Welcome to ST-LadderNet","Real-time traffic monitoring and prediction for a smarter Hyderabad."],map:["Live Map","Current speed on every monitored corridor. Tap a road for its forecast."],pred:["Predictions","ST-LadderNet forecasts for every corridor, 15 to 60 minutes ahead."],ana:["Traffic Analytics","How speeds moved today and when the city usually jams."],set:["Settings","Connect the backend and adjust refresh, forecast horizon and theme."]};
+function go(v){UI.view=v;$$(".nav button").forEach(b=>b.dataset.view===v?b.setAttribute("aria-current","page"):b.removeAttribute("aria-current"));
+  $$(".view").forEach(s=>s.hidden=s.id!=="v-"+v);$("#pageTitle").textContent=TITLES[v][0];$("#pageSub").textContent=TITLES[v][1];
+  if(S)renderView();Object.values(maps).forEach(m=>m.resize?.());store("view",v)}
+$$(".nav button").forEach(b=>b.onclick=()=>go(b.dataset.view));
+$$("[data-goto]").forEach(b=>b.onclick=()=>go(b.dataset.goto));
+function fillHorizonSelects(){$$(".horizonSel").forEach(s=>{s.innerHTML=HORIZONS.map(h=>`<option value="${h}">Next ${h} minutes</option>`).join("");s.value=UI.horizon;s.onchange=()=>{UI.horizon=+s.value;$$(".horizonSel").forEach(o=>o.value=s.value);savePrefs();drawTables()}});
+  $("#defH").innerHTML=HORIZONS.map(h=>`<option value="${h}">${h} minutes</option>`).join("");$("#defH").value=UI.horizon}
+fillHorizonSelects();
+$("#search").oninput=e=>{UI.search=e.target.value;drawTables()};
+$("#sortSel").onchange=e=>{UI.sort=e.target.value;drawTables()};
+$("#refSel").value=String(UI.refresh);$("#refSel").onchange=e=>{UI.refresh=+e.target.value;savePrefs();schedule()};
+$("#defH").onchange=e=>{UI.horizon=+e.target.value;$$(".horizonSel").forEach(o=>o.value=e.target.value);savePrefs();drawTables()};
+$("#themeSel").value=UI.theme;$("#themeSel").onchange=e=>{UI.theme=e.target.value;applyTheme();savePrefs();if(S)renderAll()};
+$("#apiIn").value=UI.api;
+$("#apiBtn").onclick=async()=>{const v=$("#apiIn").value.trim();const msg=$("#apiMsg");msg.className="note";msg.textContent="Connecting…";
+  const prev=Live.base;Live.base=v;try{Live.health=await Live.probe();UI.api=v;savePrefs();msg.className="note ok";msg.textContent=`Connected. ${Live.health.readings.toLocaleString("en-IN")} readings in the ${Live.health.database} database.`;await switchSource(Live)}
+  catch(e){Live.base=prev;msg.className="note bad";msg.textContent=`Couldn't reach ${v||"this page's server"}. Check that "python -m backend.app" is running and the address is right. Pages hosted on claude.ai can't call outside servers, so open the dashboard from the backend instead (http://localhost:8000).`}};
+function togglePop(open){const p=$("#alertPop"),b=$("#bellBtn");open=open??p.hidden;p.hidden=!open;b.setAttribute("aria-expanded",open)}
+$("#bellBtn").onclick=e=>{e.stopPropagation();togglePop()};
+document.addEventListener("click",e=>{if(!e.target.closest(".bell-wrap"))togglePop(false)});
+$("#retryBtn").onclick=()=>refresh();
+
+function renderView(){
+  drawTables();
+  if(UI.view==="dash"){drawTrend("dash");drawAlerts()}
+  if(UI.view==="ana"){drawTrend("ana");drawHourly()}
+  if(UI.view==="pred")drawLadder();
+}
+function renderAll(){drawKPIs();drawStatus();drawAlerts();Object.values(maps).forEach(m=>m.draw());renderView()}
+function tickClock(){const t=Date.now();$("#clock").textContent=fmtD(t)+" · "+fmtT(t)}
+setInterval(tickClock,15000);tickClock();
+let rz;addEventListener("resize",()=>{clearTimeout(rz);rz=setTimeout(()=>{if(!S)return;renderView();if(drawerId!=null&&$("#dChart svg"))openDrawer(drawerId)},200)});
+
+async function refresh(){
+  try{const snap=await SRC.snapshot();S=snap;if(!S.alerts)S.alerts=null;UI.failures=0;$("#errBanner").hidden=true;renderAll()}
+  catch(e){UI.failures++;if(S){$("#errTxt").textContent=`Couldn't reach the server (${e.message}). Showing data from ${fmtT(S.generatedAt)}. Retrying automatically.`;$("#errBanner").hidden=false;drawStatus()}}
+}
+function schedule(){clearInterval(timer);const ms=UI.refresh||0;if(ms>0)timer=setInterval(refresh,S&&S.mode==="live"?Math.max(ms,5000):ms)}
+async function switchSource(src){SRC=src;UI.trend={dash:null,ana:null};Object.keys(maps).forEach(k=>delete maps[k]);await setupMaps(src===Live);await refresh();schedule()}
+
+(async function boot(){
+  const v=store("view");if(v&&TITLES[v])go(v);
+  Live.base=UI.api||"";
+  let live=false;
+  if(location.protocol!=="file:"||UI.api){try{Live.health=await Live.probe();live=true}catch(e){live=false}}
+  await switchSource(live?Live:Demo);
+})();
+})();
+</script>
+
+</body>
+</html>
