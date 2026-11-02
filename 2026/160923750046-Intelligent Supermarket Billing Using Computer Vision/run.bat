@@ -1,0 +1,2 @@
+python Supermarket.py
+pause

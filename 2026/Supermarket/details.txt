@@ -1,0 +1,14 @@
+pepsodent,50.0,12-11-2020-11-40-23.jpg
+pepsodent,50.0,12-11-2020-11-41-50.jpg
+pepsodent,50.0,12-11-2020-11-42-12.jpg
+dettol_soap,25.0,12-11-2020-11-43-49.jpg
+dettol_soap,25.0,12-11-2020-11-44-45.jpg
+dettol_soap,25.0,12-11-2020-11-45-36.jpg
+parachute_oil,120.0,12-11-2020-11-46-30.jpg
+parachute_oil,120.0,12-11-2020-11-46-58.jpg
+parachute_oil,120.0,12-11-2020-11-47-24.jpg
+delmonte_sauce,160.0,12-11-2020-11-49-08.jpg
+delmonte_sauce,160.0,12-11-2020-11-49-46.jpg
+delmonte_sauce,160.0,12-11-2020-11-50-08.jpg
+qerty,None,21-09-2023-15-06-09.jpg
+pen,5.0,21-09-2023-15-06-25.jpg
