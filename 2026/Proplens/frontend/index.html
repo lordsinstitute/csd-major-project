@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PropLens AI - Smart Real Estate Pricing Engine & Neighborhood Analyzer</title>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Leaflet.js CSS for Interactive Map Rendering -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+  <!-- Custom Stylesheet (relative path supports both Flask and file://) -->
+  <link rel="stylesheet" href="static/css/style.css" />
+</head>
+<body>
+  <div class="app-container">
+    <!-- ===================================================================
+         LEFT PANEL: Controls, Form, Valuation Output & Explainability
+         =================================================================== -->
+    <aside class="sidebar">
+      <!-- Header & Brand -->
+      <header class="app-header">
+        <div class="brand">
+          <div class="brand-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+              <polyline points="9 22 9 12 15 12 15 22"></polyline>
+            </svg>
+          </div>
+          <div>
+            <h1 class="brand-title">PropLens <span class="highlight">AI</span></h1>
+            <p class="brand-subtitle">Smart Real Estate Pricing Engine & Neighborhood Analyzer</p>
+          </div>
+        </div>
+        <div class="status-pill" id="system-status">
+          <span class="status-dot"></span>
+          <span class="status-text">Backend Active</span>
+        </div>
+      </header>
+
+      <!-- Main Form -->
+      <section class="card form-card">
+        <div class="card-header">
+          <h2 class="card-title">1. Property Specifications</h2>
+          <span class="step-badge">Inputs</span>
+        </div>
+
+        <form id="property-form">
+          <!-- Location Presets & Coordinates Bar -->
+          <div class="form-group">
+            <label class="form-label">
+              <span>Geospatial Coordinates</span>
+              <span class="sub-hint">Click map or pick a preset</span>
+            </label>
+            <div class="preset-pills">
+              <button type="button" class="preset-btn" data-lat="40.7580" data-lng="-73.9855" data-name="Manhattan Hub (Times Square)">Manhattan Hub</button>
+              <button type="button" class="preset-btn" data-lat="40.7260" data-lng="-73.9988" data-name="Tech Corridor (SoHo/Greenwich Village)">Tech Corridor</button>
+              <button type="button" class="preset-btn" data-lat="40.6782" data-lng="-73.9442" data-name="Suburban Greens (Brooklyn)">Suburban Greens</button>
+              <button type="button" class="preset-btn" data-lat="40.7829" data-lng="-73.9654" data-name="Lakeside Enclave (Central Park)">Lakeside Enclave</button>
+            </div>
+            <div class="coords-display">
+              <div class="coord-box">
+                <span class="coord-label">LAT</span>
+                <input type="number" id="prop-lat" step="0.0001" value="40.7128" required />
+              </div>
+              <div class="coord-box">
+                <span class="coord-label">LNG</span>
+                <input type="number" id="prop-lng" step="0.0001" value="-74.0060" required />
+              </div>
+            </div>
+          </div>
+
+          <!-- Property Type Selector -->
+          <div class="form-group">
+            <label class="form-label">Property Type</label>
+            <div class="type-selector">
+              <label class="type-option">
+                <input type="radio" name="property_type" value="Apartment" checked />
+                <span class="type-card">
+                  <span class="type-icon">🏢</span>
+                  <span class="type-name">Apartment</span>
+                </span>
+              </label>
+              <label class="type-option">
+                <input type="radio" name="property_type" value="Independent_House" />
+                <span class="type-card">
+                  <span class="type-icon">🏡</span>
+                  <span class="type-name">House</span>
+                </span>
+              </label>
+              <label class="type-option">
+                <input type="radio" name="property_type" value="Villa" />
+                <span class="type-card">
+                  <span class="type-icon">🏰</span>
+                  <span class="type-name">Villa</span>
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Physical Dimensions Grid -->
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="prop-area">
+                Area: <span id="area-val" class="highlight-val">1,450</span> sq.ft.
+              </label>
+              <input type="range" id="prop-area" min="500" max="6000" step="50" value="1450" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="prop-age">
+                Age: <span id="age-val" class="highlight-val">4</span> years
+              </label>
+              <input type="range" id="prop-age" min="0" max="30" step="1" value="4" />
+            </div>
+          </div>
+
+          <!-- Bedrooms & Bathrooms -->
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Bedrooms (BHK)</label>
+              <div class="btn-group" id="bhk-group">
+                <button type="button" class="btn-toggle" data-val="1">1</button>
+                <button type="button" class="btn-toggle" data-val="2">2</button>
+                <button type="button" class="btn-toggle active" data-val="3">3</button>
+                <button type="button" class="btn-toggle" data-val="4">4</button>
+                <button type="button" class="btn-toggle" data-val="5">5+</button>
+              </div>
+              <input type="hidden" id="prop-bedrooms" value="3" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Bathrooms</label>
+              <div class="btn-group" id="bath-group">
+                <button type="button" class="btn-toggle" data-val="1">1</button>
+                <button type="button" class="btn-toggle active" data-val="2">2</button>
+                <button type="button" class="btn-toggle" data-val="3">3</button>
+                <button type="button" class="btn-toggle" data-val="4">4+</button>
+              </div>
+              <input type="hidden" id="prop-bathrooms" value="2" />
+            </div>
+          </div>
+
+          <!-- Action Button -->
+          <button type="submit" class="primary-btn" id="submit-btn">
+            <span class="btn-text">⚡ Calculate Market Valuation & Scan 1km</span>
+            <span class="spinner" style="display: none;"></span>
+          </button>
+        </form>
+      </section>
+
+      <!-- =================================================================
+           PILLAR 2: Smart Estimator Output Card
+           ================================================================= -->
+      <section class="card result-card" id="valuation-result-card">
+        <div class="card-header">
+          <h2 class="card-title">2. Smart Valuation Estimate</h2>
+          <span class="badge success-badge">AI Regressor v1.0</span>
+        </div>
+
+        <div class="valuation-hero">
+          <div class="price-container">
+            <span class="currency-symbol">$</span>
+            <span class="valuation-price" id="res-price">--</span>
+          </div>
+          <p class="valuation-caption">Estimated Fair Market Valuation</p>
+          <div class="confidence-band">
+            <span class="band-tag">Confidence Range (±4%):</span>
+            <span class="band-range" id="res-confidence">$0 - $0</span>
+          </div>
+        </div>
+
+        <div class="metrics-grid">
+          <div class="metric-box">
+            <span class="metric-label">Rate / Sq.Ft.</span>
+            <span class="metric-value" id="res-sqft-rate">$--</span>
+          </div>
+          <div class="metric-box">
+            <span class="metric-label">Livability Score</span>
+            <span class="metric-value highlight-score" id="res-livability">-- / 100</span>
+          </div>
+          <div class="metric-box">
+            <span class="metric-label">1km Amenities</span>
+            <span class="metric-value" id="res-amenity-total">-- Total</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- =================================================================
+           PILLAR 3: Price Breakdown & Explainability Card
+           ================================================================= -->
+      <section class="card breakdown-card" id="explainability-card">
+        <div class="card-header">
+          <h2 class="card-title">3. Price Breakdown & Explainability</h2>
+          <span class="badge info-badge">Pillar 3</span>
+        </div>
+        <p class="section-desc">Factor decomposition showing primary drivers of property market value:</p>
+
+        <div class="breakdown-bars">
+          <!-- Size Impact -->
+          <div class="breakdown-item">
+            <div class="item-header">
+              <span class="item-title">📐 Living Area (Size)</span>
+              <span class="item-val" id="bar-size-val">$-- (0%)</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar size-bar" id="bar-size" style="width: 0%"></div>
+            </div>
+          </div>
+
+          <!-- Neighborhood Amenities Impact -->
+          <div class="breakdown-item">
+            <div class="item-header">
+              <span class="item-title">🌳 1km Neighborhood Amenities</span>
+              <span class="item-val" id="bar-amenity-val">$-- (0%)</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar amenity-bar" id="bar-amenity" style="width: 0%"></div>
+            </div>
+          </div>
+
+          <!-- Room Configuration Impact -->
+          <div class="breakdown-item">
+            <div class="item-header">
+              <span class="item-title">🛏️ Bedroom & Bath Configuration</span>
+              <span class="item-val" id="bar-rooms-val">$-- (0%)</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar rooms-bar" id="bar-rooms" style="width: 0%"></div>
+            </div>
+          </div>
+
+          <!-- Property Type Premium -->
+          <div class="breakdown-item" id="type-premium-wrapper">
+            <div class="item-header">
+              <span class="item-title">✨ Architecture / Type Premium</span>
+              <span class="item-val" id="bar-type-val">$-- (0%)</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar type-bar" id="bar-type" style="width: 0%"></div>
+            </div>
+          </div>
+
+          <!-- Age Depreciation -->
+          <div class="breakdown-item">
+            <div class="item-header">
+              <span class="item-title">⏳ Property Age Depreciation</span>
+              <span class="item-val text-danger" id="bar-age-val">-$0</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar age-bar" id="bar-age" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Neighborhood Micro-Factor Badges -->
+        <div class="sub-factors-container">
+          <h4 class="sub-factors-title">Micro-Location Valuation Additions</h4>
+          <div class="sub-factors-grid" id="sub-factors-grid">
+            <div class="sub-tag">🚇 Transit Proximity: <b id="sub-transit">+$0</b></div>
+            <div class="sub-tag">🏫 Schools Density: <b id="sub-schools">+$0</b></div>
+            <div class="sub-tag">🏥 Healthcare Access: <b id="sub-health">+$0</b></div>
+            <div class="sub-tag">🌿 Parks & Greenery: <b id="sub-parks">+$0</b></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =================================================================
+           PILLAR 1 AMENITIES LIST (Detected in 1km Radius)
+           ================================================================= -->
+      <section class="card amenities-card">
+        <div class="card-header">
+          <h2 class="card-title">1km Radius Amenity Scanner</h2>
+          <span class="badge accent-badge">Pillar 1</span>
+        </div>
+
+        <!-- Category counts summary -->
+        <div class="category-badges">
+          <div class="cat-pill transit-cat">
+            <span class="cat-icon">🚇</span>
+            <span class="cat-count" id="count-transit">0</span>
+            <span class="cat-label">Transit</span>
+          </div>
+          <div class="cat-pill school-cat">
+            <span class="cat-icon">🏫</span>
+            <span class="cat-count" id="count-school">0</span>
+            <span class="cat-label">Schools</span>
+          </div>
+          <div class="cat-pill hospital-cat">
+            <span class="cat-icon">🏥</span>
+            <span class="cat-count" id="count-hospital">0</span>
+            <span class="cat-label">Hospitals</span>
+          </div>
+          <div class="cat-pill park-cat">
+            <span class="cat-icon">🌳</span>
+            <span class="cat-count" id="count-park">0</span>
+            <span class="cat-label">Parks</span>
+          </div>
+          <div class="cat-pill shop-cat">
+            <span class="cat-icon">🛍️</span>
+            <span class="cat-count" id="count-commercial">0</span>
+            <span class="cat-label">Commercial</span>
+          </div>
+        </div>
+
+        <div class="amenity-list-box" id="amenity-items-container">
+          <p class="placeholder-text">Click any point on the map to trigger a 1 km neighborhood scan...</p>
+        </div>
+      </section>
+
+      <!-- =================================================================
+           DATABASE LOGGING: Recent Queries from SQLite (proplens.db)
+           ================================================================= -->
+      <section class="card history-card">
+        <div class="card-header">
+          <h2 class="card-title">Database Logs (SQLite)</h2>
+          <button type="button" class="text-btn" id="btn-clear-history">Clear Logs</button>
+        </div>
+        <p class="section-desc">Queries, coordinates, and valuation estimates logged to <code>proplens.db</code>:</p>
+
+        <div class="history-table-container">
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Type</th>
+                <th>Area</th>
+                <th>BHK</th>
+                <th>Estimate</th>
+                <th>Score</th>
+                <th>Time</th>
+              </tr>
+            </thead>
+            <tbody id="history-table-body">
+              <tr>
+                <td colspan="7" class="placeholder-cell">Loading SQLite records...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </aside>
+
+    <!-- ===================================================================
+         RIGHT PANEL: Full Interactive Leaflet.js / OpenStreetMap Map
+         =================================================================== -->
+    <main class="map-pane">
+      <!-- Leaflet Map Container -->
+      <div id="map" class="map-container"></div>
+
+      <!-- Map Overlay Floating Controls -->
+      <div class="map-overlay-card">
+        <div class="overlay-header">
+          <span class="overlay-indicator"></span>
+          <span class="overlay-title">Interactive 1km Scanner</span>
+        </div>
+        <p class="overlay-info">
+          📌 Click anywhere on the map to drop pin and scan amenities within <b>1,000 meters</b>.
+        </p>
+        <div class="map-legend">
+          <span class="legend-chip"><i class="dot dot-center"></i> Property</span>
+          <span class="legend-chip"><i class="dot dot-transit"></i> Transit</span>
+          <span class="legend-chip"><i class="dot dot-school"></i> School</span>
+          <span class="legend-chip"><i class="dot dot-hospital"></i> Hospital</span>
+          <span class="legend-chip"><i class="dot dot-park"></i> Park</span>
+          <span class="legend-chip"><i class="dot dot-commercial"></i> Mall/Shop</span>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Leaflet.js Library -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""></script>
+  <!-- Main Application JavaScript (relative path supports both Flask and file://) -->
+  <script src="static/js/app.js"></script>
+</body>
+</html>
