@@ -1,0 +1,283 @@
+/*
+  Smart Class Automation
+  ESP32 (30-pin) + 2x DHT22 + 2x HC-SR04 + 4-Channel Relay + Blynk
+
+  PART 1 - FANS (temperature):
+    Switch 1 (V0) -> Fan 1 (IN1)   Switch 2 (V1) -> Fan 2 (IN2)
+    Auto mode (V8 ON): fans ON at 31 C or above, OFF at 30 C or below.
+
+  PART 2 - LIGHTS (people counter at the door):
+    Switch 3 (V2) -> Bulb 1 (IN3)  Switch 4 (V3) -> Bulb 2 (IN4)
+    Two HC-SR04 sensors on the door frame count people in and out.
+    Lights auto (V10 ON): bulbs ON while people inside > 0,
+    OFF LIGHT_OFF_DELAY seconds after the last person leaves.
+
+  Blynk datastreams:
+    V0-V3  switches (Integer 0/1)
+    V4 avg temp, V5 avg humidity, V6 sensor 1 temp, V7 sensor 2 temp (Double)
+    V8  Fan auto mode       (Integer 0/1, Switch)
+    V9  People inside       (Integer 0-200, Label / Value display)
+    V10 Lights auto mode    (Integer 0/1, Switch)
+    V11 Reset people count  (Integer 0/1, Button in PUSH mode)
+
+  Wiring:
+    ESP32 3V3 -> bottom + rail (3.3V)     ESP32 GND -> bottom - rail
+    ESP32 VIN -> top + rail (5V)          top - rail -> bottom - rail (common GND)
+    DHT22 #1 OUT -> GPIO 18, DHT22 #2 OUT -> GPIO 4 (both on 3.3V rail)
+    HC-SR04 A (OUTSIDE side of door): VCC 5V, GND, TRIG -> GPIO 25,
+        ECHO -> 1k -> GPIO 34, with 2k from GPIO 34 to GND
+    HC-SR04 B (INSIDE side of door):  VCC 5V, GND, TRIG -> GPIO 26,
+        ECHO -> 1k -> GPIO 35, with 2k from GPIO 35 to GND
+    Relay VCC -> VIN (5V), GND -> GND, IN1-IN4 -> GPIO 23, 22, 21, 19
+*/
+
+#define BLYNK_TEMPLATE_ID   "TMPL3pg2K03xp"
+#define BLYNK_TEMPLATE_NAME "Esp32Relay"
+#define BLYNK_AUTH_TOKEN    "DGZ_F6SRm6TpQUG75XEv_RQnWCKHmojK"
+#define BLYNK_PRINT Serial
+
+#include <WiFi.h>
+#include <WiFiClient.h>
+#include <BlynkSimpleEsp32.h>
+#include <DHT.h>
+
+char ssid[] = "Iphone";
+char pass[] = "SAMAD@18";
+
+// ------------------------------------------------------------------
+//  RELAY PINS - if two loads are swapped, just swap their numbers here
+// ------------------------------------------------------------------
+#define PIN_FAN1   23   // Switch 1 (V0) -> IN1
+#define PIN_FAN2   22   // Switch 2 (V1) -> IN2
+#define PIN_BULB1  21   // Switch 3 (V2) -> IN3
+#define PIN_BULB2  19   // Switch 4 (V3) -> IN4
+
+const int   relayPins[4]  = {PIN_FAN1, PIN_FAN2, PIN_BULB1, PIN_BULB2};
+const char* relayNames[4] = {"Fan 1", "Fan 2", "Bulb 1", "Bulb 2"};
+
+#define RELAY_ON  LOW    // active-LOW relay board
+#define RELAY_OFF HIGH
+
+// ------------------------------------------------------------------
+//  DHT22 SENSORS
+// ------------------------------------------------------------------
+#define DHT_PIN_1 18
+#define DHT_PIN_2 4
+DHT dht1(DHT_PIN_1, DHT22);
+DHT dht2(DHT_PIN_2, DHT22);
+
+const float FAN_ON_TEMP  = 31.0;   // fans ON at/above this (°C)
+const float FAN_OFF_TEMP = 30.0;   // fans OFF at/below this (°C)
+
+// ------------------------------------------------------------------
+//  ULTRASONIC SENSORS (door people counter)
+// ------------------------------------------------------------------
+#define TRIG_A 25   // sensor A = OUTSIDE side of the door
+#define ECHO_A 34
+#define TRIG_B 26   // sensor B = INSIDE side of the door
+#define ECHO_B 35
+
+const int   DOOR_TRIGGER_CM  = 70;     // something closer than this = person in doorway
+const unsigned long PASS_TIMEOUT_MS = 1500;  // max time between A and B for one crossing
+const unsigned long LIGHT_OFF_DELAY = 10;    // seconds lights stay on after room empties
+
+enum DoorState { IDLE, A_FIRST, B_FIRST, WAIT_CLEAR };
+DoorState doorState = IDLE;
+unsigned long doorStateTime = 0;
+int peopleInside = 0;
+unsigned long emptySince = 0;          // millis() when count hit 0 (0 = not empty)
+
+// ------------------------------------------------------------------
+//  STATE
+// ------------------------------------------------------------------
+bool fanAuto   = true;
+bool lightAuto = true;
+bool relayState[4] = {false, false, false, false};
+BlynkTimer timer;
+
+// ------------------------------------------------------------------
+//  HELPERS
+// ------------------------------------------------------------------
+void setRelay(int i, bool on) {
+  if (relayState[i] == on) return;
+  relayState[i] = on;
+  digitalWrite(relayPins[i], on ? RELAY_ON : RELAY_OFF);
+  Blynk.virtualWrite(V0 + i, on ? 1 : 0);
+  Serial.printf("%s %s\n", relayNames[i], on ? "ON" : "OFF");
+}
+
+void setFans(bool on)   { setRelay(0, on); setRelay(1, on); }
+void setLights(bool on) { setRelay(2, on); setRelay(3, on); }
+
+void setFanAuto(bool on) {
+  fanAuto = on;
+  Blynk.virtualWrite(V8, on ? 1 : 0);
+  Serial.println(on ? "Fan AUTO ON" : "Fan MANUAL");
+}
+
+void setLightAuto(bool on) {
+  lightAuto = on;
+  Blynk.virtualWrite(V10, on ? 1 : 0);
+  Serial.println(on ? "Light AUTO ON" : "Light MANUAL");
+}
+
+bool isOn(const BlynkParam &param) { return param.asInt() == 1; }
+
+// Distance in cm, or 999 if nothing within ~4 m
+int readDistanceCm(int trig, int echo) {
+  digitalWrite(trig, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trig, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trig, LOW);
+  unsigned long us = pulseIn(echo, HIGH, 25000);   // 25 ms timeout
+  if (us == 0) return 999;
+  return us / 58;
+}
+
+void updatePeople(int change) {
+  peopleInside += change;
+  if (peopleInside < 0) peopleInside = 0;
+  Blynk.virtualWrite(V9, peopleInside);
+  Serial.printf("%s  ->  people inside: %d\n", change > 0 ? "ENTRY" : "EXIT", peopleInside);
+
+  if (peopleInside > 0) {
+    emptySince = 0;
+    if (lightAuto) setLights(true);
+  } else {
+    emptySince = millis();            // start the off-delay
+  }
+}
+
+// ------------------------------------------------------------------
+//  DOOR COUNTER (every 60 ms)
+//  A then B = person walked IN.  B then A = person walked OUT.
+// ------------------------------------------------------------------
+void checkDoor() {
+  bool a = readDistanceCm(TRIG_A, ECHO_A) < DOOR_TRIGGER_CM;
+  delay(5);                           // let echoes die down between sensors
+  bool b = readDistanceCm(TRIG_B, ECHO_B) < DOOR_TRIGGER_CM;
+
+  switch (doorState) {
+    case IDLE:
+      if (a && !b)      { doorState = A_FIRST; doorStateTime = millis(); }
+      else if (b && !a) { doorState = B_FIRST; doorStateTime = millis(); }
+      break;
+
+    case A_FIRST:
+      if (b)                                             { updatePeople(+1); doorState = WAIT_CLEAR; }
+      else if (millis() - doorStateTime > PASS_TIMEOUT_MS) doorState = IDLE;
+      break;
+
+    case B_FIRST:
+      if (a)                                             { updatePeople(-1); doorState = WAIT_CLEAR; }
+      else if (millis() - doorStateTime > PASS_TIMEOUT_MS) doorState = IDLE;
+      break;
+
+    case WAIT_CLEAR:
+      if (!a && !b) doorState = IDLE;  // wait until the doorway is empty
+      break;
+  }
+}
+
+// Turn lights off after the delay once the room is empty (every 1 s)
+void checkLightsOff() {
+  if (lightAuto && peopleInside == 0 && emptySince != 0 &&
+      millis() - emptySince >= LIGHT_OFF_DELAY * 1000UL) {
+    setLights(false);
+    emptySince = 0;
+  }
+}
+
+// ------------------------------------------------------------------
+//  TEMPERATURE + AUTO FANS (every 3 s)
+// ------------------------------------------------------------------
+void readTempAndControl() {
+  float t1 = dht1.readTemperature(), h1 = dht1.readHumidity();
+  float t2 = dht2.readTemperature(), h2 = dht2.readHumidity();
+
+  bool ok1 = !isnan(t1) && !isnan(h1);
+  bool ok2 = !isnan(t2) && !isnan(h2);
+  if (!ok1) Serial.println("DHT22 #1 (GPIO 18) read failed");
+  if (!ok2) Serial.println("DHT22 #2 (GPIO 4) read failed");
+  if (!ok1 && !ok2) return;
+
+  float avgT = (ok1 && ok2) ? (t1 + t2) / 2 : (ok1 ? t1 : t2);
+  float avgH = (ok1 && ok2) ? (h1 + h2) / 2 : (ok1 ? h1 : h2);
+
+  Serial.printf("Avg: %.1f C %.1f %% | people: %d\n", avgT, avgH, peopleInside);
+
+  Blynk.virtualWrite(V4, avgT);
+  Blynk.virtualWrite(V5, avgH);
+  if (ok1) Blynk.virtualWrite(V6, t1);
+  if (ok2) Blynk.virtualWrite(V7, t2);
+
+  if (!fanAuto) return;
+  if (avgT >= FAN_ON_TEMP)       setFans(true);
+  else if (avgT <= FAN_OFF_TEMP) setFans(false);
+}
+
+// ------------------------------------------------------------------
+//  BLYNK HANDLERS
+// ------------------------------------------------------------------
+BLYNK_CONNECTED() {
+  Serial.println("Connected to Blynk");
+  Blynk.syncVirtual(V0, V1, V2, V3, V8, V10);
+  Blynk.virtualWrite(V9, peopleInside);
+}
+
+BLYNK_WRITE(V0) { if (fanAuto)   setFanAuto(false);   setRelay(0, isOn(param)); }  // Fan 1
+BLYNK_WRITE(V1) { if (fanAuto)   setFanAuto(false);   setRelay(1, isOn(param)); }  // Fan 2
+BLYNK_WRITE(V2) { if (lightAuto) setLightAuto(false); setRelay(2, isOn(param)); }  // Bulb 1
+BLYNK_WRITE(V3) { if (lightAuto) setLightAuto(false); setRelay(3, isOn(param)); }  // Bulb 2
+
+BLYNK_WRITE(V8) {                       // Fan auto mode
+  fanAuto = isOn(param);
+  Serial.println(fanAuto ? "Fan AUTO ON" : "Fan MANUAL");
+  if (fanAuto) readTempAndControl();
+}
+
+BLYNK_WRITE(V10) {                      // Light auto mode
+  lightAuto = isOn(param);
+  Serial.println(lightAuto ? "Light AUTO ON" : "Light MANUAL");
+  if (lightAuto) setLights(peopleInside > 0);
+}
+
+BLYNK_WRITE(V11) {                      // Reset people count (push button)
+  if (isOn(param)) {
+    peopleInside = 0;
+    emptySince = millis();
+    Blynk.virtualWrite(V9, 0);
+    Serial.println("People count reset to 0");
+  }
+}
+
+// ------------------------------------------------------------------
+//  SETUP + LOOP
+// ------------------------------------------------------------------
+void setup() {
+  for (int i = 0; i < 4; i++) {         // all relays OFF at boot
+    digitalWrite(relayPins[i], RELAY_OFF);
+    pinMode(relayPins[i], OUTPUT);
+    digitalWrite(relayPins[i], RELAY_OFF);
+  }
+
+  pinMode(TRIG_A, OUTPUT); pinMode(ECHO_A, INPUT);
+  pinMode(TRIG_B, OUTPUT); pinMode(ECHO_B, INPUT);
+  digitalWrite(TRIG_A, LOW); digitalWrite(TRIG_B, LOW);
+
+  Serial.begin(115200);
+  dht1.begin();
+  dht2.begin();
+
+  Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
+
+  timer.setInterval(3000L, readTempAndControl);   // DHT22: every 3 s
+  timer.setInterval(60L,   checkDoor);            // door sensors: ~16x per second
+  timer.setInterval(1000L, checkLightsOff);       // light off-delay
+}
+
+void loop() {
+  Blynk.run();
+  timer.run();
+}
