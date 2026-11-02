@@ -1,0 +1,6 @@
+{
+  "name": "CrewHub",
+  "description": "Real-time teammate finder for hackathons and tech competitions with AI team matching and project collaboration workspaces.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
