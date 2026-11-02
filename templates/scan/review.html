@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Review Upload - Poultry Disease Detection{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-9">
+        <h1 class="h4 mb-4">Review Upload</h1>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <div class="row g-4">
+                    <div class="col-md-5">
+                        <img src="{{ url_for('scan.uploaded_file', filename=scan.image_path) }}"
+                             class="upload-preview" alt="Uploaded image">
+                    </div>
+                    <div class="col-md-7">
+                        <table class="table table-borderless mb-0">
+                            <tbody>
+                                <tr><th scope="row" class="text-muted fw-normal">Farm</th>
+                                    <td>{{ current_user.farm_name }}</td></tr>
+                                <tr><th scope="row" class="text-muted fw-normal">Batch</th>
+                                    <td>{{ scan.batch_name }}</td></tr>
+                                <tr><th scope="row" class="text-muted fw-normal">Date</th>
+                                    <td>{{ scan.scan_date.strftime("%d-%m-%Y") }}</td></tr>
+                                <tr><th scope="row" class="text-muted fw-normal">Total birds</th>
+                                    <td>{{ scan.total_birds }}</td></tr>
+                                <tr><th scope="row" class="text-muted fw-normal">Sick birds</th>
+                                    <td>{{ scan.sick_birds }}</td></tr>
+                                <tr><th scope="row" class="text-muted fw-normal">Dead birds</th>
+                                    <td>{{ scan.dead_birds }}</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <hr class="my-4">
+
+                {% if not model_ready %}
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    The disease model has not been trained yet, so this image cannot be
+                    analysed. Add your dataset and run <code>python train_model.py</code>,
+                    then come back and press Analyze.
+                </div>
+                {% endif %}
+
+                <div class="d-flex flex-wrap gap-2">
+                    <form method="post" action="{{ url_for('scan.analyze') }}" id="analyze-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-success px-4" id="analyze-btn"
+                                {% if not model_ready %}disabled{% endif %}>
+                            <i class="bi bi-search-heart me-1"></i>Analyze Image
+                        </button>
+                    </form>
+
+                    <form method="post" action="{{ url_for('scan.cancel') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-lg me-1"></i>Cancel and delete image
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Prevent a double submission while the model is working
+    document.getElementById("analyze-form").addEventListener("submit", function () {
+        var button = document.getElementById("analyze-btn");
+        button.disabled = true;
+        button.innerHTML =
+            '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Analyzing...';
+    });
+</script>
+{% endblock %}

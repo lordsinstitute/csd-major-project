@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}File Too Large{% endblock %}
+{% block content %}
+<div class="text-center py-5">
+    <h1 class="display-4">413</h1>
+    <p class="lead">The uploaded file is too large. The maximum size is 5 MB.</p>
+    <a href="{{ url_for('main.index') }}" class="btn btn-success">Go Home</a>
+</div>
+{% endblock %}

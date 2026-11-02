@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}Result - Poultry Disease Detection{% endblock %}
+
+{% block content %}
+{% set risk_class = {'High': 'danger', 'Medium': 'warning text-dark', 'Low': 'success'}.get(record.risk_level, 'secondary') %}
+
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-10">
+
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+            <h1 class="h4 mb-0">Disease Detection Result</h1>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('scan.upload') }}" class="btn btn-success btn-sm">
+                    <i class="bi bi-plus-lg me-1"></i>Scan Another
+                </a>
+                <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-speedometer2 me-1"></i>Dashboard
+                </a>
+            </div>
+        </div>
+
+        <!-- Result card -->
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body p-4">
+                <div class="row g-4">
+
+                    <div class="col-md-5">
+                        <img src="{{ url_for('scan.uploaded_file', filename=record.image_path) }}"
+                             class="upload-preview mb-3" alt="Uploaded image">
+                        <table class="table table-sm table-borderless small mb-0">
+                            <tbody>
+                                <tr><th scope="row" class="text-muted fw-normal">Farm</th>
+                                    <td>{{ current_user.farm_name }}</td></tr>
+                                <tr><th scope="row" class="text-muted fw-normal">Batch</th>
+                                    <td>{{ record.batch_name }}</td></tr>
+                                <tr><th scope="row" class="text-muted fw-normal">Date</th>
+                                    <td>{{ record.date.strftime("%d-%m-%Y") }}</td></tr>
+                                <tr><th scope="row" class="text-muted fw-normal">Total birds</th>
+                                    <td>{{ record.total_birds }}</td></tr>
+                                <tr><th scope="row" class="text-muted fw-normal">Sick birds</th>
+                                    <td>{{ record.sick_birds }}</td></tr>
+                                <tr><th scope="row" class="text-muted fw-normal">Dead birds</th>
+                                    <td>{{ record.dead_birds }}</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="col-md-7">
+                        <div class="text-muted small mb-1">Prediction</div>
+                        <span class="disease-badge disease-{{ info.css }}">{{ info.title }}</span>
+
+                        <div class="row g-3 mt-2">
+                            <div class="col-sm-7">
+                                <div class="text-muted small mb-1">Confidence</div>
+                                <div class="fs-4 fw-semibold">{{ "%.1f"|format(record.confidence) }}%</div>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar bg-{{ 'success' if record.predicted_disease == 'Healthy' else 'danger' }}"
+                                         role="progressbar"
+                                         style="width: {{ record.confidence }}%"
+                                         aria-valuenow="{{ record.confidence }}"
+                                         aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                            </div>
+                            <div class="col-sm-5">
+                                <div class="text-muted small mb-1">Risk Level</div>
+                                <span class="badge bg-{{ risk_class }} fs-6">{{ record.risk_level }}</span>
+                            </div>
+                        </div>
+
+                        {% if low_confidence %}
+                        <div class="alert alert-warning mt-3 mb-0 small">
+                            <i class="bi bi-exclamation-triangle me-1"></i>
+                            The model is not very sure about this image. Retake the photo in
+                            good light, or ask a veterinarian to check the birds.
+                        </div>
+                        {% endif %}
+
+                        <hr>
+
+                        <h2 class="h6">Recommendation</h2>
+                        <ul class="mb-3">
+                            {% for line in recommendations %}
+                            <li>{{ line }}</li>
+                            {% endfor %}
+                        </ul>
+
+                        {% if probabilities %}
+                        <h2 class="h6">Probability by class</h2>
+                        {% for name, value in probabilities %}
+                        <div class="prob-row">
+                            <div class="d-flex justify-content-between small">
+                                <span>{{ name }}</span>
+                                <span>{{ "%.1f"|format(value) }}%</span>
+                            </div>
+                            <div class="progress" style="height: 6px;">
+                                <div class="progress-bar prob-bar-{{ name|lower }}"
+                                     role="progressbar" style="width: {{ value }}%"></div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Disease information -->
+        <div class="card border-0 shadow-sm disease-info disease-info-{{ info.css }}">
+            <div class="card-body p-4">
+                <h2 class="h6 mb-2"><i class="bi bi-info-circle me-1"></i>About: {{ info.title }}</h2>
+                <p class="mb-2">{{ info.summary }}</p>
+                {% if info.signs %}
+                <div class="small fw-semibold">Common signs</div>
+                <ul class="small">
+                    {% for sign in info.signs %}<li>{{ sign }}</li>{% endfor %}
+                </ul>
+                {% endif %}
+                {% if info.spread %}
+                <p class="small mb-0"><span class="fw-semibold">How it spreads:</span> {{ info.spread }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <p class="text-muted small mt-3">
+            This result is an automated image-based estimate to support your decisions.
+            It is not a veterinary diagnosis. If birds are sick or dying, contact a veterinarian.
+        </p>
+    </div>
+</div>
+{% endblock %}

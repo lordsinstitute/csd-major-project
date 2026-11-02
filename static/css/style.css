@@ -1,0 +1,202 @@
+/* Global theme for the Poultry Disease Detection app */
+
+:root {
+    --brand-green: #2e7d32;
+    --brand-green-dark: #1b5e20;
+    --page-bg: #f4f7f5;
+}
+
+body {
+    background-color: var(--page-bg);
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+}
+
+.app-navbar {
+    background: linear-gradient(90deg, var(--brand-green-dark), var(--brand-green));
+}
+
+.brand-icon {
+    font-size: 3rem;
+    color: var(--brand-green);
+}
+
+.auth-card {
+    border: 0;
+    border-radius: 0.75rem;
+}
+
+.btn-success {
+    background-color: var(--brand-green);
+    border-color: var(--brand-green);
+}
+
+.btn-success:hover,
+.btn-success:focus {
+    background-color: var(--brand-green-dark);
+    border-color: var(--brand-green-dark);
+}
+
+a {
+    color: var(--brand-green);
+}
+
+a:hover {
+    color: var(--brand-green-dark);
+}
+
+.form-control:focus {
+    border-color: var(--brand-green);
+    box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.2);
+}
+
+/* ---------- Dashboard ---------- */
+
+.stat-card {
+    border-radius: 0.75rem;
+}
+
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    flex-shrink: 0;
+}
+
+.stat-label {
+    font-size: 0.8rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.stat-value {
+    font-size: 1.75rem;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.stat-sub {
+    font-size: 0.75rem;
+    color: #6c757d;
+}
+
+.chart-box {
+    position: relative;
+    height: 280px;
+}
+
+.chart-box-short {
+    height: 200px;
+}
+
+.chart-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #9aa5a0;
+    font-size: 0.95rem;
+    border: 2px dashed #dfe6e2;
+    border-radius: 0.5rem;
+}
+
+.chart-empty.d-none {
+    display: none !important;
+}
+
+/* ---------- Upload ---------- */
+
+.upload-preview {
+    display: block;
+    max-width: 100%;
+    max-height: 320px;
+    border-radius: 0.5rem;
+    border: 1px solid #dfe6e2;
+    object-fit: contain;
+    background: #fff;
+}
+
+.mt-n2 {
+    margin-top: -0.5rem;
+}
+
+/* ---------- Result page ---------- */
+
+.disease-badge {
+    display: inline-block;
+    padding: 0.35rem 1rem;
+    border-radius: 2rem;
+    color: #fff;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.disease-healthy { background: #2e7d32; }
+.disease-coccidiosis { background: #f57c00; }
+.disease-salmonella { background: #c62828; }
+.disease-newcastle { background: #6a1b9a; }
+
+.disease-info {
+    border-left: 5px solid #607d8b !important;
+}
+
+.disease-info-healthy { border-left-color: #2e7d32 !important; }
+.disease-info-coccidiosis { border-left-color: #f57c00 !important; }
+.disease-info-salmonella { border-left-color: #c62828 !important; }
+.disease-info-newcastle { border-left-color: #6a1b9a !important; }
+
+.prob-row {
+    margin-bottom: 0.6rem;
+}
+
+.prob-bar-healthy { background-color: #2e7d32; }
+.prob-bar-coccidiosis { background-color: #f57c00; }
+.prob-bar-salmonella { background-color: #c62828; }
+.prob-bar-newcastle { background-color: #6a1b9a; }
+
+/* ---------- History ---------- */
+
+.history-table th {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+}
+
+.badge-disease {
+    display: inline-block;
+    padding: 0.2rem 0.65rem;
+    border-radius: 1rem;
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.pagination .page-link {
+    color: var(--brand-green);
+}
+
+.pagination .page-item.active .page-link {
+    background-color: var(--brand-green);
+    border-color: var(--brand-green);
+    color: #fff;
+}
+
+/* ---------- Analytics ---------- */
+
+.insight-box {
+    border-left: 5px solid #607d8b !important;
+}
+
+.insight-up { border-left-color: #c62828 !important; }
+.insight-up .bi { color: #c62828; }
+
+.insight-down { border-left-color: #2e7d32 !important; }
+.insight-down .bi { color: #2e7d32; }
+
+.insight-flat .bi { color: #607d8b; }

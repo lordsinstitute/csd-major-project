@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% from "_macros.html" import render_field %}
+
+{% block title %}Upload Image - Poultry Disease Detection{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-9">
+        <div class="mb-4">
+            <h1 class="h4 mb-1">Upload Faeces Image</h1>
+            <p class="text-muted mb-0">
+                Enter the batch details and upload a clear photo of the droppings.
+            </p>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <form method="post" enctype="multipart/form-data" novalidate id="upload-form">
+                    {{ form.hidden_tag() }}
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ render_field(form.batch_name, placeholder="Batch A", icon="collection") }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ render_field(form.scan_date, icon="calendar3") }}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            {{ render_field(form.total_birds, placeholder="500", icon="list-ol") }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ render_field(form.sick_birds, placeholder="0", icon="thermometer-half") }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ render_field(form.dead_birds, placeholder="0", icon="x-octagon") }}
+                        </div>
+                    </div>
+                    <p class="text-muted small mt-n2">
+                        Sick and dead birds are counted separately, so together they cannot exceed the total.
+                    </p>
+
+                    {{ render_field(form.image, icon="image") }}
+                    <p class="text-muted small">JPG or PNG, up to 5 MB.</p>
+
+                    <div id="image-preview-wrap" class="mb-3 d-none">
+                        <div class="small text-muted mb-1">Preview</div>
+                        <img id="image-preview" class="upload-preview" alt="Selected image preview">
+                    </div>
+                    <div id="client-error" class="alert alert-danger d-none" role="alert"></div>
+
+                    {{ form.submit(class="btn btn-success px-4") }}
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/upload.js') }}"></script>
+{% endblock %}

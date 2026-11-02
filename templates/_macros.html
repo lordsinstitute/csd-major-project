@@ -1,0 +1,23 @@
+{# Renders one WTForms field with Bootstrap 5 styling and error messages #}
+{% macro render_field(field, placeholder="", autocomplete="", icon="") %}
+<div class="mb-3">
+    {{ field.label(class="form-label") }}
+    <div class="input-group has-validation">
+        {% if icon %}<span class="input-group-text"><i class="bi bi-{{ icon }}"></i></span>{% endif %}
+        {% if field.errors %}
+            {{ field(class="form-control is-invalid", placeholder=placeholder, autocomplete=autocomplete) }}
+        {% else %}
+            {{ field(class="form-control", placeholder=placeholder, autocomplete=autocomplete) }}
+        {% endif %}
+        {% if field.type == "PasswordField" %}
+        <button class="btn btn-outline-secondary toggle-password" type="button"
+                data-target="{{ field.id }}" aria-label="Show or hide password">
+            <i class="bi bi-eye"></i>
+        </button>
+        {% endif %}
+        {% for error in field.errors %}
+        <div class="invalid-feedback">{{ error }}</div>
+        {% endfor %}
+    </div>
+</div>
+{% endmacro %}
