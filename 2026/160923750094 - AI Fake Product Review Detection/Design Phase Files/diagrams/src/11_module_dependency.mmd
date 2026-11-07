@@ -1,0 +1,22 @@
+flowchart LR
+    app["app.py"] --> predict["ml/predict.py"]
+    app --> batch["ml/batch.py"]
+    app --> train["ml/train.py"]
+    app --> explain["ml/explain.py"]
+    app --> config["ml/config.py"]
+    app -. starts via .-> run["run.py"]
+    batch --> behavior["ml/behavior.py"]
+    batch --> bot["ml/bot.py"]
+    batch --> loaddata["ml/load_data.py"]
+    predict --> clean["ml/clean.py"]
+    predict --> behavior
+    predict --> bot
+    predict --> score["ml/score.py"]
+    predict --> explain
+    predict --> config
+    train --> loaddata
+    train --> clean
+    train --> features["ml/features.py"]
+    train --> config
+    explain --> clean
+    loaddata --> config

@@ -1,0 +1,18 @@
+flowchart TD
+    S["python app.py<br/>browser opens by itself"] --> H["Home<br/>summary, 5 steps, trust levels"]
+    H --> SB{"Left menu"}
+    SB --> R["Check a Review"]
+    SB --> C["Check a CSV File"]
+    SB --> M["Model Performance"]
+    SB --> H
+    R --> R1["Type or paste review<br/>or use an example"]
+    R1 --> R2["Optional reviewer behaviour<br/>reviews in 24h, account age"]
+    R2 --> R3["Result: gauge, verdict, bot check,<br/>Why, highlighted review, breakdown"]
+    C --> C1["Upload CSV or use demo file"]
+    C1 --> C2["Analyze file"]
+    C2 --> C3["KPIs, 3 charts"]
+    C3 --> C4["Tabs: Reviews, Users and bots, Download"]
+    M --> M1["Results table, bar chart,<br/>confusion matrix"]
+    M1 --> M2["Train again"]
+    X["Model missing"] -. shows .-> T["Train model now button"]
+    T -. then .-> H

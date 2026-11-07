@@ -1,0 +1,23 @@
+flowchart TD
+    A["Review text"] --> B["Text model<br/>fake probability p, 0 to 1"]
+    C["Reviews in last 24 hours"] --> D["Posting risk<br/>10 or more = 1.0<br/>5 to 9 = 0.6<br/>3 to 4 = 0.3<br/>else 0"]
+    E["Account age in days"] --> F["Age risk<br/>under 1 day = 0.5<br/>under 7 days = 0.3<br/>else 0"]
+    D --> G["Behaviour risk b<br/>higher of the two"]
+    F --> G
+    B --> H{"Behaviour<br/>known?"}
+    G --> H
+    H -->|yes| I["risk = 0.7 x p + 0.3 x b"]
+    H -->|no| J["risk = p"]
+    I --> K["Review trust = 100 x (1 - risk)"]
+    J --> K
+    K --> L{"Score"}
+    L -->|70 to 100| M["Trusted"]
+    L -->|40 to 69| N["Needs a check"]
+    L -->|0 to 39| O["Likely fake or bot"]
+    B --> Q
+    B --> V["Verdict<br/>Fake if p is 0.5 or more"]
+    G --> Q["User trust = 100 x (1 - (0.5 x b + 0.5 x average p))"]
+    Q --> R{"User score"}
+    R -->|70 to 100| S["Looks human"]
+    R -->|40 to 69| W["Suspicious"]
+    R -->|0 to 39| X["Bot-like"]

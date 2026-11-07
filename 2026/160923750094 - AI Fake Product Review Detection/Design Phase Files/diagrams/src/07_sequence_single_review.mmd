@@ -1,0 +1,15 @@
+sequenceDiagram
+    actor U as User
+    participant A as app.py
+    participant P as Analyzer
+    participant M as Saved model files
+    U->>A: Type review and press Check review
+    A->>P: analyze(text, reviews_24h, age)
+    P->>P: clean_text(text)
+    P->>M: use vectorizer and best model
+    M-->>P: fake probability
+    P->>P: behavior_risk, trust_score, bot_status
+    P->>P: explain_text and top_terms
+    P-->>A: trust, level, verdict, reasons, terms
+    A->>A: build gauge, badges, highlighted text
+    A-->>U: Show result page

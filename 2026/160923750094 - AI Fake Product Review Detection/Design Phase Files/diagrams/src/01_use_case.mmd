@@ -1,0 +1,23 @@
+flowchart LR
+    U(["User<br/>shopper or analyst"])
+    subgraph SYS["TrustLens system"]
+        UC1(["Check one review"])
+        UC2(["Enter reviewer behaviour<br/>optional"])
+        UC3(["Upload CSV file"])
+        UC4(["View trust score and verdict"])
+        UC5(["View explanation<br/>highlighted words"])
+        UC6(["View bot-like users"])
+        UC7(["Download results"])
+        UC8(["View model performance"])
+        UC9(["Train or retrain model"])
+    end
+    U --- UC1
+    U --- UC3
+    U --- UC8
+    U --- UC9
+    UC1 -. include .-> UC4
+    UC1 -. include .-> UC5
+    UC2 -. extend .-> UC1
+    UC3 -. include .-> UC4
+    UC3 -. extend .-> UC6
+    UC3 -. extend .-> UC7

@@ -1,0 +1,23 @@
+flowchart LR
+    U(["User"])
+    P1["1.0 Accept input<br/>review text, behaviour,<br/>CSV file"]
+    P2["2.0 Preprocess<br/>clean and TF-IDF"]
+    P3["3.0 Predict<br/>fake probability"]
+    P4["4.0 Score<br/>trust score, bot status"]
+    P5["5.0 Explain<br/>word contributions"]
+    P6["6.0 Display<br/>gauge, tables, charts"]
+    P7["7.0 Train<br/>4 models, select best"]
+    D1[("D1 Reviews dataset<br/>CSV")]
+    D2[("D2 Model files<br/>joblib, csv, json")]
+    U -->|review or CSV| P1
+    P1 --> P2
+    P2 --> P3
+    D2 -->|saved model| P3
+    P3 --> P4
+    P3 --> P5
+    P4 --> P6
+    P5 --> P6
+    P6 -->|results| U
+    U -->|train request| P7
+    D1 -->|training data| P7
+    P7 -->|save| D2

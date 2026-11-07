@@ -1,0 +1,14 @@
+sequenceDiagram
+    actor U as User
+    participant A as app.py
+    participant B as batch.py
+    participant P as Analyzer
+    U->>A: Upload CSV and press Analyze file
+    A->>B: analyze_dataframe(df, analyzer, max_rows)
+    B->>B: find text column, count reviews per user per day
+    B->>P: analyze_batch(texts, posts_per_day, 999)
+    P-->>B: verdict, fake chance, trust, level per review
+    B->>B: build users table with user trust and status
+    B-->>A: reviews table, users table, accuracy if label exists
+    A->>A: keep result in session state
+    A-->>U: KPIs, charts, tables, download buttons

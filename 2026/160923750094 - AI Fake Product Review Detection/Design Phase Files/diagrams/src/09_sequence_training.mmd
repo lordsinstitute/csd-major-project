@@ -1,0 +1,17 @@
+sequenceDiagram
+    actor U as User
+    participant A as app.py
+    participant T as train.py
+    participant D as data folder
+    participant M as models folder
+    U->>A: Press Train model now
+    A->>T: main(progress)
+    T->>D: find and read dataset CSV
+    T->>T: load 10,000 balanced reviews and clean
+    T->>T: split 80 20 and fit TF-IDF on train
+    T->>T: train LR, SVM, Random Forest, XGBoost
+    T->>T: compare accuracy, precision, recall, F1
+    T->>M: save vectorizer, best model, explainer, results, meta
+    T-->>A: results table
+    A->>A: clear cache and rerun
+    A-->>U: Model ready

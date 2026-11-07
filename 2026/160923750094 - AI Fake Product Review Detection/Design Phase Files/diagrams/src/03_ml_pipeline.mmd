@@ -1,0 +1,20 @@
+flowchart LR
+    subgraph T["Training pipeline - python -m ml.train"]
+        direction LR
+        T1["Load<br/>10,000 balanced reviews<br/>fake = 1, real = 0"] --> T2["Clean<br/>lowercase, remove tags<br/>and symbols"]
+        T2 --> T3["Split<br/>80 percent train<br/>20 percent test"]
+        T3 --> T4["TF-IDF<br/>learn words from<br/>train only"]
+        T4 --> T5["Train 4 models<br/>LR, SVM, RF, XGBoost"]
+        T5 --> T6["Select best by F1<br/>on the test set"]
+        T6 --> T7["Save<br/>models folder"]
+    end
+    subgraph P["Prediction pipeline - for every review"]
+        direction LR
+        P1["Review text"] --> P2["Clean"]
+        P2 --> P3["TF-IDF<br/>saved vectorizer"]
+        P3 --> P4["Best model<br/>fake probability"]
+        P4 --> P5["Trust score<br/>and verdict"]
+        P3 --> P6["Logistic Regression<br/>word weights"]
+        P6 --> P7["Explanation"]
+    end
+    T7 -. loaded by .-> P3

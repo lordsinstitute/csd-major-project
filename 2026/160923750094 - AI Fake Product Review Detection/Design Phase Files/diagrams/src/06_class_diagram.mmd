@@ -1,0 +1,58 @@
+classDiagram
+    class Analyzer {
+        +vectorizer
+        +model
+        +explainer
+        +analyze(text, reviews_last_24h, account_age_days) dict
+        +analyze_batch(texts, reviews_last_24h, account_age_days) list
+    }
+    class Trainer {
+        +main(path, progress) DataFrame
+    }
+    class BatchProcessor {
+        +find_text_column(df) str
+        +analyze_dataframe(df, analyzer, max_rows) dict
+    }
+    class BehaviourRules {
+        +behavior_risk(reviews_last_24h, account_age_days) tuple
+    }
+    class TrustScoring {
+        +trust_score(fake_prob, behavior_risk) int
+        +level_name(score) str
+    }
+    class BotDetection {
+        +user_trust_score(behavior_risk, avg_fake_prob) int
+        +bot_status(score) str
+    }
+    class Explainer {
+        +explain_text(text, vectorizer, explainer) list
+        +top_terms(text, vectorizer, explainer, n) list
+        +highlight_html(text, vectorizer, explainer) str
+    }
+    class TextCleaner {
+        +clean_text(text) str
+    }
+    class DataLoader {
+        +find_dataset() str
+        +load_reviews(path, n) DataFrame
+    }
+    class StreamlitApp {
+        +main()
+        +page_home()
+        +page_review()
+        +page_csv()
+        +page_model()
+    }
+    StreamlitApp --> Analyzer : uses
+    StreamlitApp --> BatchProcessor : uses
+    StreamlitApp --> Trainer : uses
+    BatchProcessor --> Analyzer : calls
+    BatchProcessor --> BehaviourRules : uses
+    BatchProcessor --> BotDetection : uses
+    Analyzer --> TextCleaner : uses
+    Analyzer --> BehaviourRules : uses
+    Analyzer --> TrustScoring : uses
+    Analyzer --> BotDetection : uses
+    Analyzer --> Explainer : uses
+    Trainer --> DataLoader : uses
+    Trainer --> TextCleaner : uses

@@ -1,0 +1,25 @@
+flowchart TB
+    subgraph PRES["Presentation layer"]
+        RUN["run.py<br/>starts the website"]
+        APP["app.py - Streamlit<br/>Home, Check a Review,<br/>Check a CSV File, Model Performance"]
+    end
+    subgraph INTEL["Intelligence layer - ml package"]
+        PRED["predict.py<br/>Analyzer class"]
+        BATCH["batch.py<br/>CSV mode and user table"]
+        TRAIN["train.py<br/>train and compare 4 models"]
+        STEPS["clean.py, features.py, behavior.py,<br/>bot.py, score.py, explain.py"]
+    end
+    subgraph STORE["Storage layer - plain files, no database"]
+        DATA[("data/<br/>Kaggle reviews CSV")]
+        MODELS[("models/<br/>vectorizer, best_model, explainer,<br/>results.csv, meta.json")]
+    end
+    RUN --> APP
+    APP --> PRED
+    APP --> BATCH
+    APP --> TRAIN
+    BATCH --> PRED
+    PRED --> STEPS
+    TRAIN --> STEPS
+    TRAIN -->|reads| DATA
+    TRAIN -->|saves| MODELS
+    PRED -->|loads| MODELS
