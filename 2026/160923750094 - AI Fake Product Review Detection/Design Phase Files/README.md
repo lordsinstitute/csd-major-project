@@ -10,8 +10,6 @@ Fake reviews mislead buyers, and bots make them look real. **TrustLens** checks 
 |---|---|
 | **Project title** | AI-Powered Fake Product Review Detection (TrustLens) |
 | **Project domain** | AI / ML |
-| **Team No.** | ________ (write your team number here) |
-| **Guide** | Mrs. Zainab Begum |
 
 ### Team members
 | Name | Roll number |
